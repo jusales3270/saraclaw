@@ -95,7 +95,10 @@
     "tui:dev": "OPENCLAW_PROFILE=dev CLAWDBOT_PROFILE=dev node scripts/run-node.mjs --dev tui",
     "ui:build": "node scripts/ui.js build",
     "ui:dev": "node scripts/ui.js dev",
-    "ui:install": "node scripts/ui.js install"
+    "ui:install": "node scripts/ui.js install",
+    "pulse:test": "node --import tsx src/tests/pulse-test.ts",
+    "sara:heart:start": "node --import tsx src/heart/scheduler.ts",
+    "sara:security:check": "node --import tsx src/shield/the-censor.ts --test"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "0.13.1",
