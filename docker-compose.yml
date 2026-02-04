@@ -1,46 +1,164 @@
+# ============================================
+# SARACLAW - A FORTALEZA
+# ============================================
+# Configuração Docker para a Entidade Soberana
+# "Segurança por Subtração, Inteligência por Contexto"
+
 services:
-  openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+  # ============================================
+  # GATEWAY PRINCIPAL
+  # ============================================
+  saraclaw-gateway:
+    image: ${SARACLAW_IMAGE:-saraclaw:local}
+    container_name: saraclaw-gateway
     environment:
       HOME: /home/node
       TERM: xterm-256color
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      NODE_ENV: ${NODE_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Gateway
+      SARACLAW_GATEWAY_TOKEN: ${SARACLAW_GATEWAY_TOKEN}
+      # LLM Providers (via Docker secrets em produção)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      # Channels
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Sara Config
+      SARA_HEARTBEAT_INTERVAL_MS: ${SARA_HEARTBEAT_INTERVAL_MS:-300000}
+      SARA_ACTION_THRESHOLD: ${SARA_ACTION_THRESHOLD:-0.7}
+      SARA_OPENAUGI_PATH: /home/node/.saraclaw/openaugi
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${SARACLAW_CONFIG_DIR:-~/.saraclaw}:/home/node/.saraclaw:rw
+      - ${SARACLAW_WORKSPACE_DIR:-~/.saraclaw/workspace}:/home/node/.saraclaw/workspace:rw
+      # OpenAugi repository (read-only for safety)
+      - ${SARA_OPENAUGI_PATH:-~/.openaugi}:/home/node/.saraclaw/openaugi:ro
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      - "${SARACLAW_GATEWAY_PORT:-18789}:18789"
+      - "${SARACLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - saraclaw-internal
     command:
       [
         "node",
         "dist/index.js",
         "gateway",
         "--bind",
-        "${OPENCLAW_GATEWAY_BIND:-lan}",
+        "${SARACLAW_GATEWAY_BIND:-localhost}",
         "--port",
         "18789",
       ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
-  openclaw-cli:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
+  # ============================================
+  # SANDBOX - BROWSER (Ephemeral)
+  # ============================================
+  saraclaw-sandbox-browser:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    container_name: saraclaw-sandbox-browser
+    profiles:
+      - sandbox
     environment:
-      HOME: /home/node
-      TERM: xterm-256color
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      BROWSER: echo
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
-    volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-    stdin_open: true
-    tty: true
-    init: true
-    entrypoint: ["node", "dist/index.js"]
+      HOME: /home/pwuser
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+      - /home/pwuser:size=128m,mode=1777
+    networks:
+      - saraclaw-sandbox
+    # Container é efêmero - gerenciado pelo SandboxEnforcer
+    command: ["sleep", "infinity"]
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '2.0'
+        reservations:
+          memory: 512m
+
+  # ============================================
+  # SANDBOX - PYTHON (Ephemeral)
+  # ============================================
+  saraclaw-sandbox-python:
+    image: python:3.11-slim
+    container_name: saraclaw-sandbox-python
+    profiles:
+      - sandbox
+    environment:
+      HOME: /home/sandbox
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    network_mode: none
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /home/sandbox:size=64m,mode=1777
+    command: ["sleep", "infinity"]
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1.0'
+
+  # ============================================
+  # SANDBOX - SHELL (Ephemeral)
+  # ============================================
+  saraclaw-sandbox-shell:
+    image: alpine:latest
+    container_name: saraclaw-sandbox-shell
+    profiles:
+      - sandbox
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    network_mode: none
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    command: ["sleep", "infinity"]
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  # Rede interna para o gateway
+  saraclaw-internal:
+    driver: bridge
+    internal: false
+  
+  # Rede isolada para sandboxes (opcional internet para browser)
+  saraclaw-sandbox:
+    driver: bridge
+    internal: false
+
+# ============================================
+# VOLUMES (Persistência)
+# ============================================
+volumes:
+  saraclaw-config:
+    driver: local
+  saraclaw-workspace:
+    driver: local
+  saraclaw-thought-logs:
+    driver: local
