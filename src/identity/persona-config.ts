@@ -62,12 +62,36 @@ export interface OpenAugiConfig {
 }
 
 /**
+ * Notification configuration for proactive whispers
+ */
+export interface NotificationConfig {
+    /** Minimum score to save to journal (1-10, default: 7) */
+    journalThreshold: number;
+
+    /** Minimum score to notify user (1-10, default: 10) */
+    notifyThreshold: number;
+
+    /** Default notification channels */
+    defaultChannels: ('telegram' | 'discord' | 'slack' | 'web')[];
+
+    /** Enable context bridge (chat to memory) */
+    enableContextBridge: boolean;
+
+    /** Auto-summarize after N messages */
+    autoSummarizeThreshold: number;
+
+    /** Enable quiet hours for notifications */
+    respectQuietHours: boolean;
+}
+
+/**
  * Complete Sara persona configuration
  */
 export interface SaraPersonaConfig {
     heartbeat: HeartbeatConfig;
     security: SecurityConfig;
     openAugi: OpenAugiConfig;
+    notification: NotificationConfig;
 
     /** Custom identity overrides */
     identity?: {
@@ -103,6 +127,15 @@ export const DEFAULT_PERSONA_CONFIG: SaraPersonaConfig = {
         enabled: false, // Disabled until configured
         maxContextTokens: 2000,
         semanticSearchEnabled: true,
+    },
+
+    notification: {
+        journalThreshold: 7,    // Score 7+: save to journal
+        notifyThreshold: 10,    // Score 10: notify user
+        defaultChannels: ['telegram'],
+        enableContextBridge: true,
+        autoSummarizeThreshold: 10,
+        respectQuietHours: true,
     },
 };
 
