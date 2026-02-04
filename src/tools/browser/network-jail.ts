@@ -59,15 +59,19 @@ export interface DockerNetworkConfig {
 // CONSTANTS
 // ============================================
 
-/** Private network ranges (RFC 1918 + others) */
+/** Private network ranges (RFC 1918 + IPv6 equivalents) */
 export const PRIVATE_NETWORKS = [
+    // IPv4 Private
     '10.0.0.0/8',        // Class A private
     '172.16.0.0/12',     // Class B private
     '192.168.0.0/16',    // Class C private
-    '127.0.0.0/8',       // Loopback
+    '127.0.0.0/8',       // Loopback IPv4
     '169.254.0.0/16',    // Link-local (includes Docker metadata)
+    // IPv6 Private & Loopback
+    '::1/128',           // Loopback IPv6 (CRITICAL!)
     'fc00::/7',          // IPv6 unique local
     'fe80::/10',         // IPv6 link-local
+    'fd00::/8',          // IPv6 private
 ];
 
 /** Docker metadata IPs to block */
@@ -219,9 +223,12 @@ echo "[NETWORK-JAIL] Rules applied: ${rules.length} rules"
                 return { blocked: true, reason: 'File protocol not allowed' };
             }
 
-            // Block localhost
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                return { blocked: true, reason: 'Localhost access blocked' };
+            // Block localhost (IPv4 and IPv6)
+            if (hostname === 'localhost' ||
+                hostname === '127.0.0.1' ||
+                hostname === '::1' ||
+                hostname === '[::1]') {
+                return { blocked: true, reason: 'Localhost access blocked (IPv4/IPv6)' };
             }
 
             // Check against private IP patterns
@@ -248,13 +255,21 @@ echo "[NETWORK-JAIL] Rules applied: ${rules.length} rules"
     private isPrivateIP(ip: string): boolean {
         // Simple pattern matching for common private ranges
         const privatePatterns = [
+            // IPv4 patterns
             /^10\./,
             /^172\.(1[6-9]|2[0-9]|3[01])\./,
             /^192\.168\./,
             /^127\./,
             /^169\.254\./,
-            /^fc[0-9a-f]{2}:/i,
-            /^fe80:/i,
+            // IPv6 patterns (CRITICAL for security!)
+            /^::1$/,                    // Loopback
+            /^\[::1\]$/,               // Loopback in URL format
+            /^fc[0-9a-f]{2}:/i,        // Unique local
+            /^fd[0-9a-f]{2}:/i,        // Private
+            /^fe80:/i,                 // Link-local
+            /^::ffff:10\./i,           // IPv4-mapped IPv6 (10.x)
+            /^::ffff:192\.168\./i,     // IPv4-mapped IPv6 (192.168.x)
+            /^::ffff:172\.(1[6-9]|2[0-9]|3[01])\./i, // IPv4-mapped IPv6 (172.16.x)
         ];
 
         return privatePatterns.some(pattern => pattern.test(ip));
