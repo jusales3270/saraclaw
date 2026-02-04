@@ -6,12 +6,14 @@
  * - CuriosityEngine (decision)
  * - SafeBrowserExecutor (action)
  * - TheCensor (output guard)
+ * - JournalWriter (memory consolidation)
  * 
  * Usage: npm run pulse:live
  */
 
 import { CuriosityEngine, createCuriosityEngine, buildKnowledgeContext, CuriosityDecision, KnowledgeContext } from './curiosity-engine.js';
 import { SafeBrowserExecutor, createTestBrowserExecutor, BrowserSearchResult } from '../tools/browser/index.js';
+import { JournalWriter, createJournalWriter } from '../../packages/sara-memory/src/writer.js';
 
 // ============================================
 // TYPES
@@ -55,6 +57,12 @@ interface PulseResult {
     /** Final output */
     output: string;
 
+    /** Journal path (if written) */
+    journalPath?: string;
+
+    /** Pulse number */
+    pulseNumber: number;
+
     /** Timestamp */
     timestamp: Date;
 }
@@ -66,6 +74,9 @@ const DEFAULT_PULSE_CONFIG: PulseConfig = {
     dryRun: false,
     verbose: true,
 };
+
+/** Pulse counter (persisted in memory during session) */
+let pulseCounter = 0;
 
 // ============================================
 // INTEGRATED PULSE
@@ -87,6 +98,15 @@ export async function runIntegratedPulse(config: Partial<PulseConfig> = {}): Pro
     // Initialize components
     const curiosityEngine = createCuriosityEngine({ verbose: cfg.verbose });
     const browserExecutor = createTestBrowserExecutor();
+    const journalWriter = createJournalWriter({
+        openAugiPath: cfg.openAugiPath,
+        dryRun: cfg.dryRun,
+        verbose: cfg.verbose,
+    });
+
+    // Increment pulse counter
+    pulseCounter++;
+    const currentPulse = pulseCounter;
 
     // =============================================
     // PHASE 1: IDLE → REFLEXION
@@ -179,6 +199,30 @@ export async function runIntegratedPulse(config: Partial<PulseConfig> = {}): Pro
     console.log(censorResult.sanitizedOutput);
     log('OUTPUT', '═'.repeat(50));
 
+    // =============================================
+    // PHASE 6: JOURNALING (memory consolidation)
+    // =============================================
+    let journalPath: string | undefined;
+
+    if (!cfg.dryRun || cfg.verbose) {
+        log('MEMORY', 'Consolidando memória...');
+
+        // Extract insights for journal
+        const insights = decision.shouldResearch && searchResults.length > 0
+            ? searchResults.filter(r => !r.blocked).map(r => r.title).slice(0, 3)
+            : [decision.reason];
+
+        // Write reflection
+        journalPath = journalWriter.writeReflection(
+            decision.topic || knowledge.topics[0] || 'Reflexão Geral',
+            insights,
+            decision.shouldResearch ? 'action' : 'idle',
+            currentPulse
+        );
+
+        log('MEMORY', `✏️  Diário salvo: ${journalPath}`);
+    }
+
     // Return to IDLE
     states.push('IDLE');
     log('HEARTBEAT', `Estados percorridos: ${states.join(' → ')}`);
@@ -189,6 +233,8 @@ export async function runIntegratedPulse(config: Partial<PulseConfig> = {}): Pro
         decision,
         searchResults,
         output: censorResult.sanitizedOutput,
+        journalPath,
+        pulseNumber: currentPulse,
         timestamp: new Date(),
     };
 }

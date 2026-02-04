@@ -196,3 +196,4 @@ export function createOpenAugiConnector(config: OpenAugiConnectorConfig): OpenAu
 // Re-export types and utilities
 export * from './semantic-search.js';
 export * from './context-enricher.js';
+export * from './writer.js';
