@@ -7,6 +7,7 @@
 export * from './the-censor.js';
 export * from './patterns.js';
 export * from './sandbox-enforcer.js';
+export * from './security-audit-log.js';
 
 // Convenience re-exports
 export {
@@ -33,6 +34,13 @@ export {
     DEFAULT_SANDBOX_CONFIG,
 } from './sandbox-enforcer.js';
 
+export {
+    SecurityAuditLog,
+    createSecurityAuditLog,
+    getSecurityLog,
+    DEFAULT_AUDIT_CONFIG,
+} from './security-audit-log.js';
+
 export type {
     CensorResult,
     CensorConfig,
@@ -49,3 +57,9 @@ export type {
     SandboxConfig,
     SandboxResult,
 } from './sandbox-enforcer.js';
+
+export type {
+    SecurityEventType,
+    SecurityAuditEntry,
+    SecurityAuditConfig,
+} from './security-audit-log.js';

@@ -29,10 +29,16 @@ services:
       SARA_ACTION_THRESHOLD: ${SARA_ACTION_THRESHOLD:-0.7}
       SARA_OPENAUGI_PATH: /home/node/.saraclaw/openaugi
     volumes:
+      # Config directory (writable for thought logs, workspace)
       - ${SARACLAW_CONFIG_DIR:-~/.saraclaw}:/home/node/.saraclaw:rw
       - ${SARACLAW_WORKSPACE_DIR:-~/.saraclaw/workspace}:/home/node/.saraclaw/workspace:rw
+      # Security audit logs (dedicated volume for forensics)
+      - saraclaw-security-logs:/home/node/.saraclaw/security-logs:rw
       # OpenAugi repository (read-only for safety)
       - ${SARA_OPENAUGI_PATH:-~/.openaugi}:/home/node/.saraclaw/openaugi:ro
+      # CRITICAL: Identity is IMMUTABLE - Sara cannot modify her own manifesto
+      # The manifesto.md is baked into the image at build time
+      # This ensures the identity cannot be altered at runtime
     ports:
       - "${SARACLAW_GATEWAY_PORT:-18789}:18789"
       - "${SARACLAW_BRIDGE_PORT:-18790}:18790"
@@ -161,4 +167,6 @@ volumes:
   saraclaw-workspace:
     driver: local
   saraclaw-thought-logs:
+    driver: local
+  saraclaw-security-logs:
     driver: local

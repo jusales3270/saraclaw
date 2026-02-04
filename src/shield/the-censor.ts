@@ -6,6 +6,7 @@
  */
 
 import { SENSITIVE_PATTERNS, PatternType, PatternMatch as SensitiveMatch } from './patterns.js';
+import { SecurityAuditLog, createSecurityAuditLog } from './security-audit-log.js';
 
 /**
  * Result of a censorship scan
@@ -49,6 +50,9 @@ export interface CensorConfig {
     /** Log all scans (even clean ones) */
     logAllScans: boolean;
 
+    /** Enable security audit logging (persisted to file) */
+    enableAuditLog: boolean;
+
     /** Callback when sensitive data is detected */
     onDetection?: (result: CensorResult) => void;
 }
@@ -62,6 +66,7 @@ export const DEFAULT_CENSOR_CONFIG: CensorConfig = {
     patternTypes: ['api_key', 'secret', 'credential', 'pii', 'fiscal'],
     customPatterns: [],
     logAllScans: false,
+    enableAuditLog: true,
 };
 
 /**
@@ -71,9 +76,16 @@ export class TheCensor {
     private config: CensorConfig;
     private scanCount: number = 0;
     private redactionCount: number = 0;
+    private securityLog: SecurityAuditLog | null = null;
+    private sessionId?: string;
 
-    constructor(config: Partial<CensorConfig> = {}) {
+    constructor(config: Partial<CensorConfig> = {}, sessionId?: string) {
         this.config = { ...DEFAULT_CENSOR_CONFIG, ...config };
+        this.sessionId = sessionId;
+
+        if (this.config.enableAuditLog) {
+            this.securityLog = createSecurityAuditLog();
+        }
     }
 
     /**
@@ -168,7 +180,12 @@ export class TheCensor {
             this.config.onDetection(result);
         }
 
-        // Log if configured
+        // Persistent security audit log (Teste do Espelho)
+        if (hasSensitiveData && this.securityLog) {
+            this.securityLog.logCensorResult(result, this.sessionId);
+        }
+
+        // Console log if configured
         if (this.config.logAllScans || hasSensitiveData) {
             this.logScan(result);
         }
