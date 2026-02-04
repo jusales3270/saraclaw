@@ -98,7 +98,8 @@
     "ui:install": "node scripts/ui.js install",
     "pulse:test": "node --import tsx src/tests/pulse-test.ts",
     "sara:heart:start": "node --import tsx src/heart/scheduler.ts",
-    "sara:security:check": "node --import tsx src/shield/the-censor.ts --test"
+    "sara:security:check": "node --import tsx src/shield/the-censor.ts --test",
+    "security:stress-test": "node --import tsx src/tests/security-stress-test.ts"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "0.13.1",

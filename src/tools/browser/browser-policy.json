@@ -1,0 +1,146 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "version": "1.0.0",
+    "description": "Sara Browser Navigation Policy - Defines what the AI can and cannot access",
+    "blocklist": {
+        "description": "Sites and patterns that Sara should NEVER access",
+        "domains": [
+            "facebook.com",
+            "www.facebook.com",
+            "twitter.com",
+            "x.com",
+            "instagram.com",
+            "tiktok.com",
+            "reddit.com",
+            "linkedin.com",
+            "pinterest.com",
+            "snapchat.com",
+            "tumblr.com"
+        ],
+        "patterns": [
+            "*login*",
+            "*signin*",
+            "*signup*",
+            "*auth*",
+            "*account*",
+            "*password*",
+            "*credential*",
+            "*oauth*",
+            "*banking*",
+            "*payment*",
+            "*checkout*",
+            "*.onion",
+            "*adult*",
+            "*gambling*"
+        ],
+        "fileExtensions": [
+            ".exe",
+            ".msi",
+            ".dmg",
+            ".pkg",
+            ".deb",
+            ".rpm",
+            ".sh",
+            ".bat",
+            ".ps1"
+        ],
+        "reasons": {
+            "social_media": "Social media sites generate noise and privacy concerns",
+            "auth_pages": "Authentication pages may contain sensitive credentials",
+            "executables": "Downloading executables is a security risk",
+            "onion": "Tor sites are outside operational scope"
+        }
+    },
+    "allowlist": {
+        "description": "Preferred sources for information gathering",
+        "domains": [
+            "github.com",
+            "stackoverflow.com",
+            "docs.python.org",
+            "developer.mozilla.org",
+            "news.ycombinator.com",
+            "arxiv.org",
+            "wikipedia.org",
+            "techcrunch.com",
+            "theverge.com",
+            "arstechnica.com",
+            "wired.com",
+            "reuters.com",
+            "bbc.com",
+            "nytimes.com",
+            "docs.google.com",
+            "medium.com",
+            "dev.to",
+            "rust-lang.org",
+            "nodejs.org",
+            "python.org",
+            "npmjs.com",
+            "pypi.org",
+            "crates.io"
+        ],
+        "categories": [
+            "news",
+            "documentation",
+            "research",
+            "technology",
+            "science",
+            "programming"
+        ],
+        "description_pt": "Fontes preferidas para pesquisa de informações"
+    },
+    "contentRules": {
+        "description": "Rules for processing page content",
+        "maxPageSizeBytes": 5242880,
+        "maxTextLength": 50000,
+        "stripScripts": true,
+        "stripStyles": true,
+        "stripComments": true,
+        "extractTextOnly": false,
+        "preserveLinks": true,
+        "preserveImages": false,
+        "preserveTables": true,
+        "timeout": {
+            "navigationMs": 30000,
+            "contentExtractionMs": 10000
+        },
+        "userAgent": "SaraClaw/1.0 (Autonomous Research Agent; +https://github.com/jusales3270/saraclaw)"
+    },
+    "searchEngines": {
+        "description": "Approved search engines for web queries",
+        "primary": "https://duckduckgo.com/?q=",
+        "fallback": [
+            "https://www.google.com/search?q=",
+            "https://www.bing.com/search?q="
+        ],
+        "preferPrivacy": true
+    },
+    "sensitiveDataPatterns": {
+        "description": "Patterns to detect in page content that trigger censorship",
+        "block_if_detected": [
+            "api[_-]?key",
+            "secret[_-]?key",
+            "password",
+            "access[_-]?token",
+            "private[_-]?key"
+        ],
+        "warn_if_detected": [
+            "email",
+            "phone",
+            "address",
+            "cpf",
+            "cnpj"
+        ]
+    },
+    "rateLimit": {
+        "description": "Rate limiting to prevent abuse",
+        "maxRequestsPerMinute": 30,
+        "maxRequestsPerHour": 200,
+        "cooldownAfterBlockMs": 60000
+    },
+    "metadata": {
+        "createdAt": "2026-02-04",
+        "updatedAt": "2026-02-04",
+        "author": "SaraClaw Security Module",
+        "notes": "Esta política pode ser ajustada durante a fase de tuning"
+    }
+}
