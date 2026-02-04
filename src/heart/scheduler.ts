@@ -1,303 +1,421 @@
 /**
- * Sara Heart Module - Scheduler
+ * Sara Heart - Scheduler
  * 
- * High-fidelity cron integration for autonomous reflexion cycles.
+ * The beating heart of Sara. Manages autonomous pulse cycles with:
+ * - State-aware scheduling (no concurrent pulses)
+ * - Health metrics tracking
+ * - Graceful shutdown
+ * - Arrhythmia detection (error handling)
+ * 
+ * Usage: npm run sara:heart:start
+ * 
+ * Env vars:
+ * - SARA_PULSE_CRON: Cron expression (default: every 30 min)
+ * - SARA_OPENAUGI_PATH: Path to knowledge base
+ * - SARA_DRY_RUN: Disable side effects
  */
 
-import {
-    PulseStateMachine,
-    createPulseStateMachine,
-    InsightData,
-    CycleResult,
-    meetsActionThreshold
-} from './pulse-states.js';
-import { createInnerMonologue, InnerMonologue } from '../reflexion/index.js';
-import { loadPersonaConfig, SaraPersonaConfig } from '../identity/index.js';
+import { runIntegratedPulse } from './pulse.js';
 
-/**
- * Heartbeat scheduler options
- */
-export interface HeartbeatSchedulerOptions {
-    /** Interval between heartbeat cycles in milliseconds */
-    intervalMs?: number;
+// ============================================
+// TYPES
+// ============================================
 
-    /** Action threshold for triggering proactive actions */
-    actionThreshold?: number;
+/** Scheduler state */
+type SchedulerState = 'STOPPED' | 'IDLE' | 'PULSING' | 'ERROR' | 'SHUTDOWN';
 
-    /** Maximum actions per hour */
-    maxActionsPerHour?: number;
+/** Health metrics */
+interface HealthMetrics {
+    /** Total pulses executed */
+    totalPulses: number;
 
-    /** Session ID for thought logging */
-    sessionId?: string;
+    /** Successful pulses */
+    successfulPulses: number;
 
-    /** Callback for proactive notifications */
-    onProactiveNotification?: (insight: InsightData, message: string) => Promise<void>;
+    /** Failed pulses */
+    failedPulses: number;
 
-    /** Callback for data fetching (OpenAugi, messages, etc.) */
-    onFetchContext?: () => Promise<{
-        openAugiContext?: string;
-        recentMessages?: string[];
-        signals?: string[];
-    }>;
+    /** Pulses that triggered research */
+    researchPulses: number;
 
-    /** Quiet hours configuration */
-    quietHours?: {
-        start: number;
-        end: number;
-    };
+    /** Pulses that stayed idle */
+    idlePulses: number;
+
+    /** Start time */
+    startedAt: Date;
+
+    /** Last pulse time */
+    lastPulseAt: Date | null;
+
+    /** Last error */
+    lastError: string | null;
+
+    /** Consecutive errors */
+    consecutiveErrors: number;
 }
 
-/**
- * Heartbeat scheduler statistics
- */
-export interface SchedulerStats {
-    /** Total cycles executed */
-    totalCycles: number;
+/** Scheduler configuration */
+interface SchedulerConfig {
+    /** Cron expression */
+    cronExpression: string;
 
-    /** Cycles that resulted in action */
-    actionCycles: number;
+    /** OpenAugi path */
+    openAugiPath: string;
 
-    /** Actions in the current hour */
-    actionsThisHour: number;
+    /** Dry run mode */
+    dryRun: boolean;
 
-    /** Hour of last action count reset */
-    lastHourReset: number;
+    /** Use real browser */
+    useBrowser: boolean;
 
-    /** Whether scheduler is running */
-    isRunning: boolean;
+    /** Max consecutive errors before pause */
+    maxConsecutiveErrors: number;
 
-    /** Last cycle result */
-    lastCycleResult?: CycleResult;
+    /** Pause duration after errors (ms) */
+    errorPauseDurationMs: number;
+
+    /** Verbose logging */
+    verbose: boolean;
 }
 
+/** Default configuration */
+const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
+    cronExpression: '*/30 * * * *', // Every 30 minutes
+    openAugiPath: './tests/sample-openaugi',
+    dryRun: true,
+    useBrowser: false,
+    maxConsecutiveErrors: 3,
+    errorPauseDurationMs: 300000, // 5 minutes
+    verbose: true,
+};
+
+// ============================================
+// SCHEDULER
+// ============================================
+
 /**
- * Heartbeat Scheduler
+ * Sara Heart Scheduler
  * 
- * Manages the autonomous heartbeat cycle for Sara's proactive intelligence.
+ * Manages the autonomous heartbeat cycle.
  */
-export class HeartbeatScheduler {
-    private pulseMachine: PulseStateMachine;
-    private innerMonologue: InnerMonologue;
-    private options: Required<HeartbeatSchedulerOptions>;
-    private timer: ReturnType<typeof setInterval> | null = null;
-    private stats: SchedulerStats;
+export class SaraScheduler {
+    private config: SchedulerConfig;
+    private state: SchedulerState = 'STOPPED';
+    private metrics: HealthMetrics;
+    private cronJob: NodeJS.Timeout | null = null;
+    private isProcessing: boolean = false;
+    private shutdownRequested: boolean = false;
 
-    constructor(options: HeartbeatSchedulerOptions = {}) {
-        const config = loadPersonaConfig();
-
-        this.options = {
-            intervalMs: options.intervalMs ?? config.heartbeat.intervalMs,
-            actionThreshold: options.actionThreshold ?? config.heartbeat.actionThreshold,
-            maxActionsPerHour: options.maxActionsPerHour ?? config.heartbeat.maxActionsPerHour,
-            sessionId: options.sessionId ?? `sara-${Date.now()}`,
-            quietHours: options.quietHours ?? config.heartbeat.quietHours ?? { start: 23, end: 7 },
-            onProactiveNotification: options.onProactiveNotification ?? (async () => { }),
-            onFetchContext: options.onFetchContext ?? (async () => ({})),
-        };
-
-        this.pulseMachine = createPulseStateMachine();
-        this.innerMonologue = createInnerMonologue(this.options.sessionId);
-
-        this.stats = {
-            totalCycles: 0,
-            actionCycles: 0,
-            actionsThisHour: 0,
-            lastHourReset: new Date().getHours(),
-            isRunning: false,
-        };
-
-        // Set up event listeners
-        this.setupEventListeners();
+    constructor(config: Partial<SchedulerConfig> = {}) {
+        this.config = { ...DEFAULT_SCHEDULER_CONFIG, ...config };
+        this.metrics = this.initializeMetrics();
     }
 
     /**
-     * Start the heartbeat scheduler
+     * Initialize health metrics
      */
-    start(): void {
-        if (this.stats.isRunning) {
-            console.warn('[Heart] Scheduler already running');
+    private initializeMetrics(): HealthMetrics {
+        return {
+            totalPulses: 0,
+            successfulPulses: 0,
+            failedPulses: 0,
+            researchPulses: 0,
+            idlePulses: 0,
+            startedAt: new Date(),
+            lastPulseAt: null,
+            lastError: null,
+            consecutiveErrors: 0,
+        };
+    }
+
+    /**
+     * Start the scheduler
+     */
+    async start(): Promise<void> {
+        if (this.state !== 'STOPPED') {
+            this.log('Scheduler já está rodando');
             return;
         }
 
-        console.log(`[Heart] Starting heartbeat scheduler (interval: ${this.options.intervalMs}ms)`);
+        this.log('═══════════════════════════════════════════════════════════');
+        this.log('         SARA HEART SCHEDULER - INICIANDO                  ');
+        this.log('═══════════════════════════════════════════════════════════');
+        this.log(`Cron: ${this.config.cronExpression}`);
+        this.log(`OpenAugi: ${this.config.openAugiPath}`);
+        this.log(`Dry Run: ${this.config.dryRun}`);
+        this.log(`Browser: ${this.config.useBrowser ? 'ENABLED' : 'SIMULATED'}`);
+        this.log('');
 
-        this.stats.isRunning = true;
+        this.state = 'IDLE';
+        this.metrics = this.initializeMetrics();
 
-        // Run first cycle immediately
-        this.runCycle().catch(err => {
-            console.error('[Heart] Error in initial cycle:', err);
-        });
+        // Parse cron expression and calculate interval
+        const intervalMs = this.cronToIntervalMs(this.config.cronExpression);
 
-        // Schedule recurring cycles
-        this.timer = setInterval(() => {
-            this.runCycle().catch(err => {
-                console.error('[Heart] Error in cycle:', err);
-            });
-        }, this.options.intervalMs);
+        this.log(`Intervalo calculado: ${intervalMs / 1000}s (${intervalMs / 60000} min)`);
+        this.log('');
+
+        // Execute first pulse immediately
+        this.log('❤️  Executando primeiro pulso...');
+        await this.executePulse();
+
+        // Schedule recurring pulses
+        this.cronJob = setInterval(() => {
+            if (!this.shutdownRequested) {
+                this.executePulse().catch(err => {
+                    this.log(`Erro não tratado: ${err}`);
+                });
+            }
+        }, intervalMs);
+
+        // Setup graceful shutdown
+        this.setupShutdownHandlers();
+
+        this.log('');
+        this.log('✅ Scheduler iniciado. Sara está viva!');
+        this.log('   Pressione Ctrl+C para encerrar graciosamente.');
+        this.log('');
     }
 
     /**
-     * Stop the heartbeat scheduler
+     * Execute a single pulse
      */
-    stop(): void {
-        if (!this.stats.isRunning) {
+    private async executePulse(): Promise<void> {
+        // Check if already processing (pulse lock)
+        if (this.isProcessing) {
+            this.log('⏳ Pulso anterior ainda em execução. Ignorando este ciclo.');
             return;
         }
 
-        console.log('[Heart] Stopping heartbeat scheduler');
-
-        if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
+        // Check if shutdown requested
+        if (this.shutdownRequested) {
+            this.log('🛑 Shutdown solicitado. Ignorando pulso.');
+            return;
         }
 
-        this.stats.isRunning = false;
-    }
+        // Check consecutive errors
+        if (this.metrics.consecutiveErrors >= this.config.maxConsecutiveErrors) {
+            this.log(`⚠️  Muitos erros consecutivos (${this.metrics.consecutiveErrors}). Pausando...`);
+            this.state = 'ERROR';
 
-    /**
-     * Get scheduler statistics
-     */
-    getStats(): SchedulerStats {
-        return { ...this.stats };
-    }
+            // Auto-recover after pause
+            setTimeout(() => {
+                this.log('♻️  Tentando recuperar após pausa...');
+                this.metrics.consecutiveErrors = 0;
+                this.state = 'IDLE';
+            }, this.config.errorPauseDurationMs);
 
-    /**
-     * Check if currently in quiet hours
-     */
-    isQuietHours(): boolean {
-        const hour = new Date().getHours();
-        const { start, end } = this.options.quietHours;
-
-        // Handle wrap-around (e.g., 23:00 to 07:00)
-        if (start > end) {
-            return hour >= start || hour < end;
+            return;
         }
 
-        return hour >= start && hour < end;
-    }
+        // Lock and execute
+        this.isProcessing = true;
+        this.state = 'PULSING';
+        this.metrics.totalPulses++;
 
-    /**
-     * Run a single heartbeat cycle
-     */
-    async runCycle(): Promise<CycleResult | null> {
-        // Check quiet hours
-        if (this.isQuietHours()) {
-            console.log('[Heart] Skipping cycle (quiet hours)');
-            return null;
-        }
-
-        // Check action rate limit
-        this.resetHourlyCounterIfNeeded();
-
-        // Start cycle
-        const cycleId = this.pulseMachine.startCycle();
-        console.log(`[Heart] Starting cycle ${cycleId}`);
+        const pulseStart = new Date();
+        this.log(`[${pulseStart.toISOString()}] ❤️  Pulso #${this.metrics.totalPulses} iniciado...`);
 
         try {
-            // Transition to REFLEXION
-            this.pulseMachine.transition('reflexion');
-
-            // Fetch context
-            const context = await this.options.onFetchContext();
-
-            // Run inner monologue reflexion
-            const reflexionResult = await this.innerMonologue.reflect({
-                trigger: 'heartbeat_cycle',
-                inputData: [
-                    ...(context.recentMessages || []),
-                    ...(context.signals || []),
-                ],
-                openAugiContext: context.openAugiContext,
-                currentState: 'reflexion',
+            const result = await runIntegratedPulse({
+                openAugiPath: this.config.openAugiPath,
+                dryRun: this.config.dryRun,
+                useBrowser: this.config.useBrowser,
+                verbose: this.config.verbose,
             });
 
-            // Evaluate for action
-            let actionTaken = false;
-            let insight: InsightData | undefined;
+            // Update metrics
+            this.metrics.successfulPulses++;
+            this.metrics.consecutiveErrors = 0;
+            this.metrics.lastPulseAt = new Date();
 
-            if (
-                reflexionResult.decision === 'proactive_notification' &&
-                reflexionResult.confidence >= this.options.actionThreshold
-            ) {
-                // Build insight data
-                insight = {
-                    source: context.openAugiContext ? 'openaugi' : 'recent_messages',
-                    description: reflexionResult.justification,
-                    valueScore: reflexionResult.confidence,
-                    urgencyScore: reflexionResult.riskLevel === 'high' ? 0.8 : 0.5,
-                    suggestedAction: 'notify',
-                };
-
-                // Check if meets threshold and not rate limited
-                if (
-                    meetsActionThreshold(insight, this.options.actionThreshold) &&
-                    this.stats.actionsThisHour < this.options.maxActionsPerHour
-                ) {
-                    // Transition to ACTION
-                    this.pulseMachine.transition('action', insight);
-
-                    // Execute proactive notification
-                    await this.options.onProactiveNotification(
-                        insight,
-                        reflexionResult.justification
-                    );
-
-                    actionTaken = true;
-                    this.stats.actionsThisHour++;
-                    this.stats.actionCycles++;
-                }
+            if (result.researched) {
+                this.metrics.researchPulses++;
+            } else {
+                this.metrics.idlePulses++;
             }
 
-            // Complete cycle
-            const result = this.pulseMachine.completeCycle(actionTaken, insight);
-
-            this.stats.totalCycles++;
-            this.stats.lastCycleResult = result;
-
-            console.log(`[Heart] Cycle ${cycleId} complete (action: ${actionTaken})`);
-
-            return result;
+            const duration = Date.now() - pulseStart.getTime();
+            this.log(`✅ Pulso #${this.metrics.totalPulses} concluído em ${duration}ms`);
+            this.log(`   Ação: ${result.researched ? 'RESEARCH' : 'IDLE'}`);
 
         } catch (error) {
-            console.error(`[Heart] Cycle ${cycleId} failed:`, error);
+            // Handle arrhythmia
+            this.metrics.failedPulses++;
+            this.metrics.consecutiveErrors++;
+            this.metrics.lastError = String(error);
 
-            // Force back to idle
-            this.pulseMachine.completeCycle(false);
-            this.stats.totalCycles++;
+            this.log(`⚠️  Arritmia detectada no Pulso #${this.metrics.totalPulses}: ${error}`);
 
-            throw error;
+            // Log to security audit (in production)
+            this.logSecurityEvent('pulse_error', {
+                pulseNumber: this.metrics.totalPulses,
+                error: String(error),
+                consecutiveErrors: this.metrics.consecutiveErrors,
+            });
+        } finally {
+            this.isProcessing = false;
+            this.state = 'IDLE';
+        }
+
+        // Print health summary periodically
+        if (this.metrics.totalPulses % 5 === 0) {
+            this.printHealthSummary();
         }
     }
 
     /**
-     * Reset hourly counter if hour changed
+     * Stop the scheduler
      */
-    private resetHourlyCounterIfNeeded(): void {
-        const currentHour = new Date().getHours();
+    async stop(): Promise<void> {
+        this.log('🛑 Parando scheduler...');
+        this.shutdownRequested = true;
+        this.state = 'SHUTDOWN';
 
-        if (currentHour !== this.stats.lastHourReset) {
-            this.stats.actionsThisHour = 0;
-            this.stats.lastHourReset = currentHour;
+        // Wait for current pulse to finish
+        if (this.isProcessing) {
+            this.log('   Aguardando pulso atual finalizar...');
+            while (this.isProcessing) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        // Clear interval
+        if (this.cronJob) {
+            clearInterval(this.cronJob);
+            this.cronJob = null;
+        }
+
+        this.state = 'STOPPED';
+        this.printHealthSummary();
+        this.log('✅ Scheduler parado graciosamente.');
+    }
+
+    /**
+     * Setup shutdown handlers
+     */
+    private setupShutdownHandlers(): void {
+        const shutdown = async () => {
+            await this.stop();
+            process.exit(0);
+        };
+
+        process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
+    }
+
+    /**
+     * Convert cron expression to interval (simplified)
+     */
+    private cronToIntervalMs(cron: string): number {
+        // Parse simple cron patterns
+        // */N * * * * = every N minutes
+        const match = cron.match(/^\*\/(\d+)\s+\*\s+\*\s+\*\s+\*$/);
+        if (match) {
+            return parseInt(match[1]) * 60 * 1000;
+        }
+
+        // Default: 30 minutes
+        return 30 * 60 * 1000;
+    }
+
+    /**
+     * Log message
+     */
+    private log(message: string): void {
+        if (this.config.verbose) {
+            console.log(`[SCHEDULER] ${message}`);
         }
     }
 
     /**
-     * Set up event listeners for the pulse machine
+     * Log security event (would write to JSONL in production)
      */
-    private setupEventListeners(): void {
-        this.pulseMachine.on('stateChange', (from, to) => {
-            console.log(`[Heart] State: ${from} → ${to}`);
-        });
+    private logSecurityEvent(type: string, context: Record<string, unknown>): void {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            type,
+            context,
+        };
 
-        this.pulseMachine.on('error', (error) => {
-            console.error('[Heart] Pulse machine error:', error);
-        });
+        // In production, this would append to security log
+        console.log(`[SECURITY-LOG] ${JSON.stringify(entry)}`);
+    }
+
+    /**
+     * Print health summary
+     */
+    private printHealthSummary(): void {
+        const uptime = Date.now() - this.metrics.startedAt.getTime();
+        const uptimeMinutes = Math.floor(uptime / 60000);
+
+        const idleRate = this.metrics.successfulPulses > 0
+            ? (this.metrics.idlePulses / this.metrics.successfulPulses * 100).toFixed(1)
+            : '0';
+
+        const actionRate = this.metrics.successfulPulses > 0
+            ? (this.metrics.researchPulses / this.metrics.successfulPulses * 100).toFixed(1)
+            : '0';
+
+        console.log('');
+        console.log('📊 HEALTH METRICS:');
+        console.log(`   Uptime: ${uptimeMinutes} min`);
+        console.log(`   Total Pulses: ${this.metrics.totalPulses}`);
+        console.log(`   Success Rate: ${this.metrics.successfulPulses}/${this.metrics.totalPulses}`);
+        console.log(`   Idle Rate: ${idleRate}%`);
+        console.log(`   Action Rate: ${actionRate}%`);
+        console.log(`   Consecutive Errors: ${this.metrics.consecutiveErrors}`);
+        if (this.metrics.lastError) {
+            console.log(`   Last Error: ${this.metrics.lastError}`);
+        }
+        console.log('');
+    }
+
+    /**
+     * Get current metrics
+     */
+    getMetrics(): HealthMetrics {
+        return { ...this.metrics };
+    }
+
+    /**
+     * Get current state
+     */
+    getState(): SchedulerState {
+        return this.state;
     }
 }
+
+// ============================================
+// FACTORY
+// ============================================
 
 /**
- * Create a new heartbeat scheduler
+ * Create scheduler with environment configuration
  */
-export function createHeartbeatScheduler(options?: HeartbeatSchedulerOptions): HeartbeatScheduler {
-    return new HeartbeatScheduler(options);
+export function createScheduler(): SaraScheduler {
+    return new SaraScheduler({
+        cronExpression: process.env.SARA_PULSE_CRON || '*/30 * * * *',
+        openAugiPath: process.env.SARA_OPENAUGI_PATH || './tests/sample-openaugi',
+        dryRun: process.env.SARA_DRY_RUN !== 'false',
+        useBrowser: process.env.SARA_USE_BROWSER === 'true',
+        verbose: true,
+    });
 }
+
+// ============================================
+// MAIN
+// ============================================
+
+async function main(): Promise<void> {
+    const scheduler = createScheduler();
+    await scheduler.start();
+
+    // Keep process alive
+    await new Promise(() => { });
+}
+
+main().catch((error) => {
+    console.error('Scheduler failed to start:', error);
+    process.exit(1);
+});
