@@ -15,7 +15,9 @@ export type ReflexionTrigger =
     | 'user_message'
     | 'proactive_check'
     | 'security_alert'
-    | 'context_update';
+    | 'context_update'
+    | 'cua_action'
+    | 'cua_approval_required';
 
 /**
  * Decision types that can result from reflexion
@@ -26,7 +28,9 @@ export type ReflexionDecision =
     | 'execute_tool'
     | 'defer'
     | 'escalate'
-    | 'suppress';
+    | 'suppress'
+    | 'await_approval'
+    | 'execute_cua';
 
 /**
  * Risk assessment levels

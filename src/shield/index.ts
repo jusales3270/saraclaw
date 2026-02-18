@@ -1,13 +1,14 @@
 /**
  * Sara Shield Module
  * 
- * Security guardrails - The Censor and runtime protection.
+ * Security guardrails - The Censor, Budgeter, and runtime protection.
  */
 
 export * from './the-censor.js';
 export * from './patterns.js';
 export * from './sandbox-enforcer.js';
 export * from './security-audit-log.js';
+export * from './budgeter.js';
 
 // Convenience re-exports
 export {
@@ -63,3 +64,22 @@ export type {
     SecurityAuditEntry,
     SecurityAuditConfig,
 } from './security-audit-log.js';
+
+export {
+    Budgeter,
+    TokenTracker,
+    createBudgeter,
+    createTokenTracker,
+    getBudgeter,
+    resetGlobalBudgeter,
+    TOKEN_PRICING,
+    DEFAULT_BUDGET_CONFIG,
+} from './budgeter.js';
+
+export type {
+    BudgetConfig,
+    BudgetStatus,
+    TokenUsage,
+    HaltSignal,
+} from './budgeter.js';
+

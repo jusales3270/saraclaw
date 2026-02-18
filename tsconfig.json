@@ -6,7 +6,12 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["DOM", "DOM.Iterable", "ES2023", "ScriptHost"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2023",
+      "ScriptHost"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmit": true,
@@ -18,7 +23,11 @@
     "strict": true,
     "target": "es2023"
   },
-  "include": ["src/**/*", "ui/**/*"],
+  "include": [
+    "src/**/*",
+    "ui/**/*",
+    "packages/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",

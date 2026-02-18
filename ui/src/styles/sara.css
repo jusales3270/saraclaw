@@ -1,0 +1,457 @@
+/**
+ * Sara Dashboard Styles
+ * 
+ * Soma Cinematic Hardware aesthetic:
+ * - Dark, technical interface
+ * - Green (#00ff88) and amber (#ffaa00) accents
+ * - Minimalist, hyper-realistic design
+ */
+
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
+
+:root {
+    /* Sara color palette */
+    --sara-bg: #0a0a0f;
+    --sara-panel: #12121a;
+    --sara-panel-border: #1e1e2a;
+    --sara-accent: #00ff88;
+    --sara-accent-dim: #00cc6a;
+    --sara-warning: #ffaa00;
+    --sara-danger: #ff4444;
+    --sara-text: #e0e0e0;
+    --sara-text-muted: #666;
+    --sara-text-bright: #ffffff;
+    
+    /* Spacing */
+    --sara-gap: 16px;
+    --sara-radius: 8px;
+    
+    /* Fonts */
+    --sara-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* ============================================
+   DASHBOARD LAYOUT
+   ============================================ */
+
+.sara-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: var(--sara-gap);
+    padding: var(--sara-gap);
+    min-height: 100vh;
+    background: var(--sara-bg);
+    color: var(--sara-text);
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.sara-dashboard-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--sara-panel);
+    border: 1px solid var(--sara-panel-border);
+    border-radius: var(--sara-radius);
+}
+
+.sara-dashboard-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--sara-text-bright);
+}
+
+.sara-dashboard-title::before {
+    content: '◈';
+    color: var(--sara-accent);
+    font-size: 1.5rem;
+}
+
+/* ============================================
+   PANEL BASE
+   ============================================ */
+
+.sara-panel {
+    background: var(--sara-panel);
+    border: 1px solid var(--sara-panel-border);
+    border-radius: var(--sara-radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sara-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--sara-panel-border);
+}
+
+.sara-panel-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--sara-text-muted);
+}
+
+/* ============================================
+   PULSE MONITOR
+   ============================================ */
+
+.sara-pulse {
+    text-align: center;
+}
+
+.sara-pulse-indicator {
+    width: 120px;
+    height: 120px;
+    margin: 20px auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, var(--sara-accent) 0%, transparent 70%);
+    opacity: 0.3;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.sara-pulse-indicator.active {
+    opacity: 1;
+    animation: pulse-active 0.8s ease-in-out infinite;
+}
+
+.sara-pulse-indicator.exhausted {
+    background: radial-gradient(circle at center, var(--sara-warning) 0%, transparent 70%);
+    animation: none;
+    opacity: 0.5;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { transform: scale(0.9); opacity: 0.3; }
+    50% { transform: scale(1); opacity: 0.5; }
+}
+
+@keyframes pulse-active {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.sara-pulse-state {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sara-accent);
+    margin-bottom: 8px;
+}
+
+.sara-pulse-state.exhausted {
+    color: var(--sara-warning);
+}
+
+.sara-pulse-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.sara-pulse-meta-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+}
+
+.sara-pulse-meta-label {
+    color: var(--sara-text-muted);
+}
+
+.sara-pulse-meta-value {
+    font-family: var(--sara-font-mono);
+    color: var(--sara-text-bright);
+}
+
+/* ============================================
+   INNER MONOLOGUE
+   ============================================ */
+
+.sara-monologue {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.sara-monologue-feed {
+    flex: 1;
+    overflow-y: auto;
+    background: linear-gradient(180deg, var(--sara-bg) 0%, #0a0a12 100%);
+    border-radius: 4px;
+    padding: 12px;
+    font-family: var(--sara-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.sara-monologue-entry {
+    color: var(--sara-accent);
+    opacity: 0.8;
+    margin-bottom: 8px;
+    padding-left: 16px;
+    position: relative;
+    animation: entry-appear 0.3s ease-out;
+}
+
+.sara-monologue-entry::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--sara-accent-dim);
+}
+
+.sara-monologue-entry:last-child {
+    opacity: 1;
+}
+
+.sara-monologue-entry.highlight {
+    color: var(--sara-warning);
+}
+
+.sara-monologue-entry.highlight::before {
+    color: var(--sara-warning);
+}
+
+@keyframes entry-appear {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 0.8; transform: translateY(0); }
+}
+
+.sara-curiosity-bar {
+    margin-top: 12px;
+    height: 4px;
+    background: var(--sara-bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.sara-curiosity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sara-accent-dim), var(--sara-accent));
+    transition: width 0.5s ease;
+}
+
+/* ============================================
+   GAUGES
+   ============================================ */
+
+.sara-gauges {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sara-gauge {
+    background: var(--sara-bg);
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.sara-gauge-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.8125rem;
+}
+
+.sara-gauge-label {
+    color: var(--sara-text-muted);
+}
+
+.sara-gauge-value {
+    font-family: var(--sara-font-mono);
+    color: var(--sara-text-bright);
+}
+
+.sara-gauge-bar {
+    height: 8px;
+    background: var(--sara-panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.sara-gauge-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sara-accent-dim), var(--sara-accent));
+    transition: width 0.5s ease;
+    border-radius: 4px;
+}
+
+.sara-gauge-fill.warning {
+    background: linear-gradient(90deg, var(--sara-warning), #ff8800);
+}
+
+.sara-gauge-fill.danger {
+    background: linear-gradient(90deg, var(--sara-danger), #ff2222);
+}
+
+/* Incident counter */
+.sara-incidents {
+    display: flex;
+    gap: 16px;
+}
+
+.sara-incident-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    background: var(--sara-bg);
+    border-radius: 4px;
+}
+
+.sara-incident-count {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: var(--sara-font-mono);
+    color: var(--sara-text-bright);
+}
+
+.sara-incident-label {
+    font-size: 0.75rem;
+    color: var(--sara-text-muted);
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+/* Kill switch */
+.sara-kill-switch {
+    margin-top: auto;
+    padding-top: 20px;
+}
+
+.sara-kill-switch-btn {
+    width: 100%;
+    padding: 12px 20px;
+    background: transparent;
+    border: 2px solid var(--sara-danger);
+    color: var(--sara-danger);
+    border-radius: var(--sara-radius);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sara-kill-switch-btn:hover {
+    background: var(--sara-danger);
+    color: var(--sara-bg);
+}
+
+.sara-kill-switch-btn:active {
+    transform: scale(0.98);
+}
+
+/* ============================================
+   CHAT PANEL
+   ============================================ */
+
+.sara-chat {
+    grid-column: 1 / -1;
+    max-height: 300px;
+}
+
+.sara-chat-feed {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.sara-chat-message {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.sara-chat-message.user {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sara-chat-message.sara {
+    background: rgba(0, 255, 136, 0.05);
+    border-left: 2px solid var(--sara-accent);
+}
+
+.sara-chat-message.whisper {
+    background: rgba(255, 170, 0, 0.1);
+    border-left: 2px solid var(--sara-warning);
+}
+
+.sara-chat-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--sara-panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.sara-chat-content {
+    flex: 1;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+.sara-chat-whisper-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--sara-warning);
+    color: var(--sara-bg);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .sara-dashboard {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .sara-monologue {
+        grid-column: 1 / -1;
+        order: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .sara-dashboard {
+        grid-template-columns: 1fr;
+    }
+    
+    .sara-dashboard-header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+}

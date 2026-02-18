@@ -1,0 +1,88 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Sara CUA Actions Schema",
+    "description": "Defines allowed, critical, and forbidden actions for CUA operations",
+    "actions": {
+        "allowed": [
+            "click",
+            "type",
+            "scroll",
+            "screenshot",
+            "navigate",
+            "waitFor",
+            "select",
+            "hover"
+        ],
+        "critical": [
+            "submit",
+            "delete",
+            "remove",
+            "send",
+            "confirm",
+            "purchase",
+            "buy",
+            "checkout",
+            "pay",
+            "order",
+            "post",
+            "publish",
+            "approve",
+            "reject"
+        ],
+        "forbidden": [
+            "download_exe",
+            "install",
+            "sudo",
+            "admin",
+            "root",
+            "system_settings",
+            "change_password",
+            "delete_account"
+        ]
+    },
+    "domains": {
+        "trusted": [
+            "*.google.com",
+            "*.github.com",
+            "*.stackoverflow.com",
+            "*.wikipedia.org",
+            "*.gov.br"
+        ],
+        "restricted": [
+            "*.bank*",
+            "*.financial*",
+            "*.crypto*"
+        ],
+        "blocked": [
+            "*.adult*",
+            "*.gambling*",
+            "*.darkweb*"
+        ]
+    },
+    "inputPatterns": {
+        "blocked": [
+            "^sk-[a-zA-Z0-9]{32,}$",
+            "^AIza[a-zA-Z0-9_-]{35}$",
+            "^ghp_[a-zA-Z0-9]{36}$",
+            "^[a-f0-9]{64}$",
+            "password|senha|secret|token|apikey"
+        ],
+        "sensitive": [
+            "cpf|cnpj|rg",
+            "credit.?card|cartao.?credito",
+            "social.?security|ssn"
+        ]
+    },
+    "limits": {
+        "maxActionsPerSession": 100,
+        "maxClicksPerPage": 20,
+        "maxTypingLength": 5000,
+        "sessionTimeoutMinutes": 30
+    },
+    "humanSimulation": {
+        "minDelayMs": 500,
+        "maxDelayMs": 2000,
+        "typingSpeedCpm": 300,
+        "scrollPauseMs": 1000
+    }
+}

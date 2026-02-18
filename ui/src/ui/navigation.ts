@@ -2,6 +2,7 @@ import type { IconName } from "./icons.js";
 
 export const TAB_GROUPS = [
   { label: "Chat", tabs: ["chat"] },
+  { label: "Sara", tabs: ["sara"] },
   {
     label: "Control",
     tabs: ["overview", "channels", "instances", "sessions", "cron"],
@@ -20,6 +21,7 @@ export type Tab =
   | "skills"
   | "nodes"
   | "chat"
+  | "sara"
   | "config"
   | "debug"
   | "logs";
@@ -34,6 +36,7 @@ const TAB_PATHS: Record<Tab, string> = {
   skills: "/skills",
   nodes: "/nodes",
   chat: "/chat",
+  sara: "/sara",
   config: "/config",
   debug: "/debug",
   logs: "/logs",
@@ -146,6 +149,8 @@ export function iconForTab(tab: Tab): IconName {
       return "bug";
     case "logs":
       return "scrollText";
+    case "sara":
+      return "brain";
     default:
       return "folder";
   }
@@ -177,6 +182,8 @@ export function titleForTab(tab: Tab) {
       return "Debug";
     case "logs":
       return "Logs";
+    case "sara":
+      return "Sara";
     default:
       return "Control";
   }
@@ -208,6 +215,8 @@ export function subtitleForTab(tab: Tab) {
       return "Gateway snapshots, events, and manual RPC calls.";
     case "logs":
       return "Live tail of the gateway file logs.";
+    case "sara":
+      return "Sara's sovereign interface - real-time entity dashboard.";
     default:
       return "";
   }

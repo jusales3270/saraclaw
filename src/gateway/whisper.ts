@@ -1,379 +1,309 @@
-/**
- * Sara Gateway - Whisper (Proactive Notification Handler)
- * 
- * Handles Sara's proactive communication - reaching out when she has
- * something important to share (insight score 10/10).
- * 
- * Flow: Heartbeat → CuriosityEngine → Action → Synthesis → Whisper → User
- * 
- * The Whisper has a "Notification Threshold":
- * - Score < 7: Silent (no action)
- * - Score 7-9: Journal only (write to diary)
- * - Score 10: Notify user (push message)
- */
+import { LLMClient } from '../agents/llm/llm-client.js';
+import { OpenAugiReader } from '../../packages/sara-memory/src/reader.js';
+import { JournalWriter } from '../../packages/sara-memory/src/writer.js';
 
-import { JournalWriter, createJournalWriter } from '../../packages/sara-memory/src/writer.js';
-
-// ============================================
-// TYPES
-// ============================================
-
-/** Insight significance score (1-10) */
-export type InsightScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-
-/** Notification threshold actions */
-export type ThresholdAction = 'silent' | 'journal' | 'notify';
-
-/** Insight data from pulse */
-export interface InsightData {
-    /** Topic of the insight */
-    topic: string;
-
-    /** Main insight content */
-    content: string;
-
-    /** Significance score (1-10) */
-    score: InsightScore;
-
-    /** Supporting evidence */
-    evidence?: string[];
-
-    /** Related previous insights */
-    relatedInsights?: string[];
-
-    /** Source URLs (if from research) */
-    sources?: string[];
-
-    /** Pulse number that generated this */
-    pulseNumber: number;
-
-    /** Timestamp */
-    timestamp: Date;
-}
-
-/** Notification to send to user */
-export interface ProactiveNotification {
-    /** Notification ID */
+export interface Insight {
     id: string;
-
-    /** Target channels */
-    channels: string[];
-
-    /** Title/headline */
-    title: string;
-
-    /** Message content */
     content: string;
+    score: number;           // 0-10 (7-8=journal, 9=prepare, 10=notify)
+    category: string;        // 'strategic', 'urgent', 'learning', 'warning'
+    source: string;          // 'heartbeat', 'research', 'synthesis'
+    timestamp: Date;
+    metadata?: {
+        relatedNotes?: string[];
+        confidence?: number;
+        actionable?: boolean;
+    };
+}
 
-    /** Priority level */
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-
-    /** Insight score that triggered this */
-    insightScore: InsightScore;
-
-    /** Delivery status */
-    status: 'pending' | 'sent' | 'failed';
-
-    /** Created at */
+export interface WhisperNotification {
+    id: string;
+    type: 'whisper';
+    insight: Insight;
+    deliveryMethod: 'notification' | 'journal';
     createdAt: Date;
-
-    /** Sent at */
-    sentAt?: Date;
 }
-
-/** Whisper configuration */
-export interface WhisperConfig {
-    /** Minimum score to journal (default: 7) */
-    journalThreshold: InsightScore;
-
-    /** Minimum score to notify user (default: 10) */
-    notifyThreshold: InsightScore;
-
-    /** Default notification channels */
-    defaultChannels: string[];
-
-    /** OpenAugi path for journaling */
-    openAugiPath: string;
-
-    /** Dry run mode (no actual notifications) */
-    dryRun: boolean;
-
-    /** Verbose logging */
-    verbose: boolean;
-}
-
-/** Default configuration */
-const DEFAULT_WHISPER_CONFIG: WhisperConfig = {
-    journalThreshold: 7,
-    notifyThreshold: 10,
-    defaultChannels: ['telegram'],
-    openAugiPath: './tests/sample-openaugi',
-    dryRun: true,
-    verbose: true,
-};
-
-// ============================================
-// WHISPER HANDLER
-// ============================================
 
 /**
- * Whisper - Proactive Notification Handler
- * 
- * Decides when Sara should reach out to the user.
- * Implements the "Threshold of Notification" concept.
+ * TheWhisper - Proactive intelligence layer
+ * Generates insights from autonomous processes and notifies user when critical
  */
-export class Whisper {
-    private config: WhisperConfig;
+export class TheWhisper {
+    private insightQueue: Insight[] = [];
     private journalWriter: JournalWriter;
-    private pendingNotifications: ProactiveNotification[] = [];
-    private insightsProcessed: number = 0;
-    private notificationsSent: number = 0;
-    private journalEntries: number = 0;
 
-    constructor(config: Partial<WhisperConfig> = {}) {
-        this.config = { ...DEFAULT_WHISPER_CONFIG, ...config };
-        this.journalWriter = createJournalWriter({
-            openAugiPath: this.config.openAugiPath,
-            dryRun: this.config.dryRun,
-            verbose: this.config.verbose,
-        });
+    constructor(
+        private llmClient: LLMClient,
+        private openAugiReader: OpenAugiReader
+    ) {
+        this.journalWriter = new JournalWriter();
     }
 
     /**
-     * Process an insight and decide action
+     * Process autonomous research results and generate insights
      */
-    async process(insight: InsightData): Promise<{
-        action: ThresholdAction;
-        journalPath?: string;
-        notification?: ProactiveNotification;
-    }> {
-        this.insightsProcessed++;
+    async processResearchResults(
+        topic: string,
+        findings: string[],
+        userContext: any
+    ): Promise<Insight[]> {
+        console.log('[Whisper] Processing research results:', { topic, findingsCount: findings.length });
 
-        this.log(`💭 Processing insight #${this.insightsProcessed}`);
-        this.log(`   Topic: "${insight.topic}"`);
-        this.log(`   Score: ${insight.score}/10`);
+        try {
+            // 1. Synthesize findings with LLM
+            const synthesis = await this.synthesizeFindings(topic, findings, userContext);
 
-        const action = this.determineAction(insight.score);
-        this.log(`   Action: ${action.toUpperCase()}`);
+            // 2. Extract insights
+            const insights = await this.extractInsights(synthesis);
 
-        let journalPath: string | undefined;
-        let notification: ProactiveNotification | undefined;
+            // 3. Score each insight
+            const scoredInsights = await Promise.all(
+                insights.map(insight => this.scoreInsight(insight, userContext))
+            );
 
-        // Execute action based on threshold
-        switch (action) {
-            case 'silent':
-                this.log(`   📤 Insight below threshold, discarding`);
-                break;
-
-            case 'journal':
-                this.log(`   📓 Saving to journal`);
-                journalPath = await this.writeToJournal(insight);
-                this.journalEntries++;
-                break;
-
-            case 'notify':
-                this.log(`   🔔 Generating notification!`);
-                journalPath = await this.writeToJournal(insight);
-                this.journalEntries++;
-                notification = await this.createNotification(insight);
-                await this.sendNotification(notification);
-                this.notificationsSent++;
-                break;
-        }
-
-        return { action, journalPath, notification };
-    }
-
-    /**
-     * Determine action based on insight score
-     */
-    private determineAction(score: InsightScore): ThresholdAction {
-        if (score >= this.config.notifyThreshold) {
-            return 'notify';
-        }
-        if (score >= this.config.journalThreshold) {
-            return 'journal';
-        }
-        return 'silent';
-    }
-
-    /**
-     * Write insight to journal
-     */
-    private async writeToJournal(insight: InsightData): Promise<string> {
-        const lessonsLearned = insight.evidence
-            ? [`Evidências: ${insight.evidence.join(', ')}`]
-            : undefined;
-
-        return this.journalWriter.write({
-            type: 'insight',
-            title: `Insight: ${insight.topic}`,
-            content: insight.content,
-            insights: insight.sources || [],
-            lessonsLearned,
-            pulseMode: 'action',
-            pulseNumber: insight.pulseNumber,
-            confidence: insight.score / 10,
-        });
-    }
-
-    /**
-     * Create notification for user
-     */
-    private async createNotification(insight: InsightData): Promise<ProactiveNotification> {
-        const id = `whisper-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-        const notification: ProactiveNotification = {
-            id,
-            channels: this.config.defaultChannels,
-            title: `💡 Insight Importante: ${insight.topic}`,
-            content: this.formatNotificationContent(insight),
-            priority: insight.score === 10 ? 'high' : 'medium',
-            insightScore: insight.score,
-            status: 'pending',
-            createdAt: new Date(),
-        };
-
-        this.pendingNotifications.push(notification);
-
-        return notification;
-    }
-
-    /**
-     * Format notification content for user
-     */
-    private formatNotificationContent(insight: InsightData): string {
-        const lines = [
-            `🧠 **${insight.topic}**`,
-            '',
-            insight.content,
-            '',
-        ];
-
-        if (insight.sources && insight.sources.length > 0) {
-            lines.push('📎 Fontes:');
-            for (const source of insight.sources.slice(0, 3)) {
-                lines.push(`  • ${source}`);
+            // 4. Handle based on score
+            for (const insight of scoredInsights) {
+                await this.handleInsight(insight);
             }
-            lines.push('');
+
+            return scoredInsights;
+
+        } catch (error: any) {
+            console.error('[Whisper] Error processing research:', error);
+            return [];
         }
-
-        lines.push(`_Pulso #${insight.pulseNumber} • Score: ${insight.score}/10_`);
-
-        return lines.join('\n');
     }
 
     /**
-     * Send notification to channels
+     * Synthesize findings into coherent narrative
      */
-    private async sendNotification(notification: ProactiveNotification): Promise<void> {
-        if (this.config.dryRun) {
-            this.log(`   [DRY RUN] Would send notification to: ${notification.channels.join(', ')}`);
-            this.log(`   Title: ${notification.title}`);
-            notification.status = 'sent';
-            notification.sentAt = new Date();
+    private async synthesizeFindings(
+        topic: string,
+        findings: string[],
+        userContext: any
+    ): Promise<string> {
+        const prompt = `Você acabou de pesquisar sobre "${topic}".
+
+Contexto do usuário:
+${userContext.profession ? `- Profissão: ${userContext.profession}` : ''}
+${userContext.relevantNotes?.length > 0 ? `- Notas relacionadas: ${userContext.relevantNotes.length}` : ''}
+
+Descobertas da pesquisa:
+${findings.map((f, i) => `${i + 1}. ${f}`).join('\n')}
+
+Tarefa: Sintetize essas descobertas em 2-3 insights acionáveis. Para cada insight:
+1. Explique o que mudou ou é novo
+2. Por que isso importa para o usuário
+3. Sugira uma ação (se aplicável)
+
+Formato de resposta (JSON):
+{
+  "insights": [
+    {
+      "content": "Insight aqui",
+      "category": "strategic|urgent|learning|warning",
+      "actionable": true/false
+    }
+  ]
+}`;
+
+        const response = await this.llmClient.chat(prompt, {
+            context: {
+                type: 'synthesis',
+                complexity: 'high',
+                // isCritical: true, // Not in TaskContext type yet, maybe add or omit
+                tokenBudgetRemaining: 2.0,
+                feature: 'whisper'
+            },
+            maxTokens: 1500,
+            temperature: 0.7
+        });
+
+        return response.content;
+    }
+
+    /**
+     * Extract structured insights from synthesis
+     */
+    private async extractInsights(synthesis: string): Promise<Insight[]> {
+        try {
+            // Try to parse as JSON
+            const cleanSynthesis = synthesis
+                .replace(/```json\n?/g, '')
+                .replace(/```\n?/g, '')
+                .trim();
+
+            const parsed = JSON.parse(cleanSynthesis);
+
+            return parsed.insights.map((ins: any) => ({
+                id: this.generateInsightId(),
+                content: ins.content,
+                score: 0, // Will be scored separately
+                category: ins.category || 'learning',
+                source: 'research',
+                timestamp: new Date(),
+                metadata: {
+                    actionable: ins.actionable,
+                    confidence: 0.8
+                }
+            }));
+
+        } catch (error) {
+            // Fallback: treat entire synthesis as single insight
+            console.warn('[Whisper] Could not parse JSON, using fallback');
+
+            return [{
+                id: this.generateInsightId(),
+                content: synthesis,
+                score: 0,
+                category: 'learning',
+                source: 'research',
+                timestamp: new Date(),
+                metadata: { confidence: 0.6 }
+            }];
+        }
+    }
+
+    /**
+     * Score insight importance (0-10)
+     */
+    private async scoreInsight(
+        insight: Insight,
+        userContext: any
+    ): Promise<Insight> {
+        const prompt = `Você é Sara, uma IA que precisa decidir se deve notificar o usuário.
+
+Contexto do usuário:
+${userContext.profession ? `- Profissão: ${userContext.profession}` : ''}
+${userContext.relevantNotes?.length > 0 ? `- Tem ${userContext.relevantNotes.length} notas relacionadas` : ''}
+
+Insight:
+"${insight.content}"
+
+Categoria: ${insight.category}
+
+Avalie a importância deste insight (0-10):
+- 0-6: Irrelevante ou óbvio (ignorar)
+- 7-8: Interessante, mas não urgente (salvar no diário)
+- 9: Importante, preparar notificação
+- 10: CRÍTICO, notificar imediatamente
+
+Considere:
+- Relevância para o usuário
+- Urgência temporal
+- Potencial de impacto
+- Acionabilidade
+
+Responda APENAS com um número de 0 a 10.`;
+
+        try {
+            const response = await this.llmClient.chat(prompt, {
+                context: {
+                    type: 'analysis',
+                    complexity: 'low',
+                    tokenBudgetRemaining: 2.0,
+                    feature: 'whisper'
+                },
+                maxTokens: 10,
+                temperature: 0.3
+            });
+
+            const score = parseInt(response.content.trim());
+
+            if (isNaN(score) || score < 0 || score > 10) {
+                console.warn('[Whisper] Invalid score, defaulting to 7');
+                insight.score = 7;
+            } else {
+                insight.score = score;
+            }
+
+        } catch (error) {
+            console.error('[Whisper] Error scoring insight:', error);
+            insight.score = 7; // Default to journaling
+        }
+
+        console.log('[Whisper] Scored insight:', { score: insight.score, category: insight.category });
+
+        return insight;
+    }
+
+    /**
+     * Handle insight based on score
+     */
+    private async handleInsight(insight: Insight): Promise<void> {
+        if (insight.score < 7) {
+            // Ignore
+            console.log('[Whisper] Insight below threshold, ignoring');
             return;
         }
 
-        // In production, this would:
-        // 1. Get channel adapters (Telegram, Discord, etc)
-        // 2. Send message to each channel
-        // 3. Track delivery status
-
-        for (const channel of notification.channels) {
-            this.log(`   📤 Sending to ${channel}...`);
-            // await channelAdapter.send(notification);
+        if (insight.score >= 7 && insight.score < 9) {
+            // Journal only
+            console.log('[Whisper] Journaling insight (score 7-8)');
+            await this.journalInsight(insight);
+            return;
         }
 
-        notification.status = 'sent';
-        notification.sentAt = new Date();
+        if (insight.score >= 9) {
+            // Queue for notification
+            console.log('[Whisper] Queueing notification (score 9-10)');
+            this.insightQueue.push(insight);
+
+            // Also journal
+            await this.journalInsight(insight);
+        }
+    }
+
+    /**
+     * Save insight to journal
+     */
+    private async journalInsight(insight: Insight): Promise<void> {
+        const entry = `---
+type: whisper-insight
+score: ${insight.score}
+category: ${insight.category}
+source: ${insight.source}
+timestamp: ${insight.timestamp.toISOString()}
+---
+
+# Insight: ${insight.category}
+
+${insight.content}
+
+---
+Confidence: ${insight.metadata?.confidence || 'N/A'}
+Actionable: ${insight.metadata?.actionable ? 'Yes' : 'No'}
+`;
+
+        // Note: JournalWriter.writeReflection might vary in implementation, check signature if needed
+        // Assuming simple string input or similar.
+        await this.journalWriter.writeReflection(entry);
     }
 
     /**
      * Get pending notifications
      */
-    getPendingNotifications(): ProactiveNotification[] {
-        return this.pendingNotifications.filter(n => n.status === 'pending');
+    getPendingNotifications(): WhisperNotification[] {
+        return this.insightQueue.map(insight => ({
+            id: `whisper-${insight.id}`,
+            type: 'whisper',
+            insight,
+            deliveryMethod: insight.score >= 10 ? 'notification' : 'journal',
+            createdAt: insight.timestamp
+        }));
     }
 
     /**
-     * Log message
+     * Clear notification queue
      */
-    private log(message: string): void {
-        if (this.config.verbose) {
-            console.log(`[WHISPER] ${message}`);
-        }
+    clearNotifications(): void {
+        this.insightQueue = [];
     }
 
     /**
-     * Get stats
+     * Generate unique insight ID
      */
-    getStats(): {
-        insightsProcessed: number;
-        journalEntries: number;
-        notificationsSent: number;
-    } {
-        return {
-            insightsProcessed: this.insightsProcessed,
-            journalEntries: this.journalEntries,
-            notificationsSent: this.notificationsSent,
-        };
+    private generateInsightId(): string {
+        return `ins-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     }
-}
-
-// ============================================
-// SCORE CALCULATION
-// ============================================
-
-/**
- * Calculate insight score based on various factors
- */
-export function calculateInsightScore(factors: {
-    /** Is this a novel finding? */
-    novelty: number; // 0-1
-    /** How relevant to user interests? */
-    relevance: number; // 0-1
-    /** How actionable is this? */
-    actionability: number; // 0-1
-    /** Time sensitivity */
-    urgency: number; // 0-1
-    /** Confidence in the insight */
-    confidence: number; // 0-1
-}): InsightScore {
-    // Weighted calculation
-    const raw =
-        factors.novelty * 0.25 +
-        factors.relevance * 0.30 +
-        factors.actionability * 0.20 +
-        factors.urgency * 0.15 +
-        factors.confidence * 0.10;
-
-    // Scale to 1-10
-    const score = Math.max(1, Math.min(10, Math.round(raw * 10)));
-
-    return score as InsightScore;
-}
-
-// ============================================
-// FACTORY
-// ============================================
-
-/**
- * Create Whisper with default config
- */
-export function createWhisper(config?: Partial<WhisperConfig>): Whisper {
-    return new Whisper(config);
-}
-
-/**
- * Create production Whisper
- */
-export function createProductionWhisper(channels: string[]): Whisper {
-    return new Whisper({
-        defaultChannels: channels,
-        dryRun: false,
-        verbose: false,
-        journalThreshold: 7,
-        notifyThreshold: 10,
-    });
 }

@@ -1,18 +1,155 @@
-/**
- * Sara Gateway - Echo (Reactive Response Handler)
- * 
- * Handles incoming messages from channels and generates immediate responses.
- * The "Echo" is Sara's reactive voice - responding when spoken to.
- * 
- * Flow: User Message → Gateway → Agent → Reflexion → TheCensor → Output
- */
+import { LLMClient } from '../agents/llm/llm-client.js';
+import { TaskContext } from '../agents/llm/model-router.js';
 
 // ============================================
-// TYPES
+// TYPES (Kept for Router compatibility & definitions)
 // ============================================
 
 /** Channel types */
 export type ChannelType = 'telegram' | 'discord' | 'slack' | 'web' | 'cli' | 'api';
+
+/** Incoming message from any channel */
+export interface IncomingMessage {
+    id: string;
+    channel: ChannelType;
+    channelId: string;
+    userId: string;
+    userName?: string;
+    content: string;
+    attachments?: Array<{
+        type: 'image' | 'file' | 'audio';
+        url: string;
+        name?: string;
+    }>;
+    replyTo?: string;
+    timestamp: Date;
+    raw?: unknown;
+}
+
+/** Outgoing response */
+export interface OutgoingResponse {
+    inReplyTo: string;
+    channel: ChannelType;
+    channelId: string;
+    content: string;
+    wasCensored: boolean;
+    priority: 'immediate' | 'normal' | 'low';
+    processingTimeMs: number;
+    timestamp: Date;
+}
+
+export interface EchoOptions {
+    context: TaskContext;
+    conversationHistory?: Array<{
+        role: 'user' | 'assistant' | 'system';
+        content: string;
+    }>;
+    systemPrompt?: string;
+    temperature?: number;
+    maxTokens?: number;
+}
+
+export interface EchoResponse {
+    content: string;
+    model: string;
+    usage: {
+        inputTokens: number;
+        outputTokens: number;
+        cachedTokens?: number;
+        cost: number;
+    };
+    metadata: {
+        latency: number;
+        cached: boolean;
+        effort?: string;
+    };
+}
+
+// ============================================
+// THE ECHO
+// ============================================
+
+/**
+ * TheEcho - Reactive chat interface
+ * Responds to direct user messages using LLMClient
+ */
+export class TheEcho {
+    constructor(private llmClient: LLMClient) { }
+
+    /**
+     * Respond to user message
+     */
+    async respond(
+        userMessage: string,
+        options: EchoOptions
+    ): Promise<EchoResponse> {
+        const startTime = Date.now();
+
+        console.log('[Echo] Processing message:', {
+            length: userMessage.length,
+            complexity: options.context.complexity,
+            budget: options.context.tokenBudgetRemaining
+        });
+
+        try {
+            // Call LLM with context
+            const response = await this.llmClient.chat(userMessage, {
+                context: options.context,
+                conversationHistory: options.conversationHistory,
+                systemPrompt: options.systemPrompt,
+                temperature: options.temperature ?? 0.7,
+                maxTokens: options.maxTokens ?? 1000,
+                useCache: true // Enable prompt caching
+            });
+
+            const latency = Date.now() - startTime;
+
+            console.log('[Echo] Response generated:', {
+                model: response.model,
+                cost: response.usage.cost,
+                latency,
+                cached: response.metadata.cached
+            });
+
+            return {
+                content: response.content,
+                model: response.model,
+                usage: {
+                    inputTokens: response.usage.inputTokens,
+                    outputTokens: response.usage.outputTokens,
+                    cachedTokens: response.usage.cachedTokens,
+                    cost: response.usage.cost
+                },
+                metadata: {
+                    latency,
+                    cached: response.metadata.cached,
+                    effort: response.metadata.effort
+                }
+            };
+
+        } catch (error: any) {
+            console.error('[Echo] Error generating response:', error);
+            throw new Error(`Echo failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Stream response (for future UI streaming)
+     */
+    async *streamResponse(
+        userMessage: string,
+        options: EchoOptions
+    ): AsyncGenerator<string, void, unknown> {
+        // TODO: Implement streaming when LLMClient supports it
+        const response = await this.respond(userMessage, options);
+        yield response.content;
+    }
+}
+
+// Backward compatibility class if needed by tests/router, 
+// BUT we will update Router to use TheEcho directly. 
+// Leaving 'Echo' class aliases or adapter if strictly necessary would be here,
+// but I'll remove the old implementation.
 
 /** Incoming message from any channel */
 export interface IncomingMessage {

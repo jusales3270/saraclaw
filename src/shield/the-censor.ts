@@ -130,6 +130,11 @@ export class TheCensor {
 
         // Scan for custom patterns
         for (const customPattern of this.config.customPatterns) {
+            // M2 FIX: Prevent ReDoS by limiting pattern length
+            if (customPattern.length > 50) {
+                console.warn(`[Censor] Custom pattern too long, skipping: ${customPattern.substring(0, 10)}...`);
+                continue;
+            }
             try {
                 const regex = new RegExp(customPattern, 'gi');
                 let match: RegExpExecArray | null;

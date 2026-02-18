@@ -262,7 +262,86 @@ export class SecurityAuditLog {
     }
 
     /**
-     * Get statistics
+     * Query logs with filters
+     */
+    async query(filters: {
+        type?: string;
+        severity?: 'low' | 'medium' | 'high' | 'critical';
+        startDate?: Date;
+        endDate?: Date;
+        limit?: number;
+    }): Promise<SecurityAuditEntry[]> {
+        const filePath = this.getLogFilePath();
+        if (!existsSync(filePath)) return [];
+
+        try {
+            const content = readFileSync(filePath, 'utf-8');
+            const lines = content.trim().split('\n').filter(Boolean);
+            let entries = lines.map(line => {
+                const parsed = JSON.parse(line);
+                return { ...parsed, timestamp: new Date(parsed.timestamp) } as SecurityAuditEntry;
+            });
+
+            // Apply filters
+            if (filters.type) {
+                entries = entries.filter(e => e.type === filters.type);
+            }
+            if (filters.severity) {
+                entries = entries.filter(e => e.severity === filters.severity);
+            }
+            if (filters.startDate) {
+                entries = entries.filter(e => e.timestamp >= filters.startDate!);
+            }
+            if (filters.endDate) {
+                entries = entries.filter(e => e.timestamp <= filters.endDate!);
+            }
+
+            // Sort by date desc (recent first)
+            entries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+            // Limit
+            return entries.slice(0, filters.limit || 50);
+
+        } catch (error) {
+            console.error('[SecurityAudit] Error querying logs:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get summary statistics
+     */
+    async getSummary(): Promise<Record<string, any>> {
+        const filePath = this.getLogFilePath();
+        if (!existsSync(filePath)) return {};
+
+        try {
+            const content = readFileSync(filePath, 'utf-8');
+            const lines = content.trim().split('\n').filter(Boolean);
+            const entries = lines.map(line => JSON.parse(line) as SecurityAuditEntry);
+
+            const byType: Record<string, number> = {};
+            const bySeverity: Record<string, number> = {};
+
+            entries.forEach(e => {
+                byType[e.type] = (byType[e.type] || 0) + 1;
+                bySeverity[e.severity] = (bySeverity[e.severity] || 0) + 1;
+            });
+
+            return {
+                total: entries.length,
+                byType,
+                bySeverity
+            };
+
+        } catch (error) {
+            console.error('[SecurityAudit] Error getting summary:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Get statistics (simple)
      */
     getStats(): { entriesLogged: number; logPath: string } {
         return {

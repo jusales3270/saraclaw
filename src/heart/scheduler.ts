@@ -6,6 +6,7 @@
  * - Health metrics tracking
  * - Graceful shutdown
  * - Arrhythmia detection (error handling)
+ * - Budget-aware halting (Phase 12: Budgeter)
  * 
  * Usage: npm run sara:heart:start
  * 
@@ -13,16 +14,19 @@
  * - SARA_PULSE_CRON: Cron expression (default: every 30 min)
  * - SARA_OPENAUGI_PATH: Path to knowledge base
  * - SARA_DRY_RUN: Disable side effects
+ * - SARA_DAILY_BUDGET_USD: Daily budget limit in USD
  */
 
 import { runIntegratedPulse } from './pulse.js';
+import { Budgeter, createBudgeter, BudgetStatus, HaltSignal } from '../shield/budgeter.js';
+import { fileURLToPath } from 'url';
 
 // ============================================
 // TYPES
 // ============================================
 
 /** Scheduler state */
-type SchedulerState = 'STOPPED' | 'IDLE' | 'PULSING' | 'ERROR' | 'SHUTDOWN';
+type SchedulerState = 'STOPPED' | 'IDLE' | 'PULSING' | 'ERROR' | 'SHUTDOWN' | 'BUDGET_EXHAUSTED';
 
 /** Health metrics */
 interface HealthMetrics {
@@ -52,6 +56,12 @@ interface HealthMetrics {
 
     /** Consecutive errors */
     consecutiveErrors: number;
+
+    /** Daily cost in USD (from Budgeter) */
+    dailyCost: number;
+
+    /** Budget limit in USD */
+    budgetLimit: number;
 }
 
 /** Scheduler configuration */
@@ -76,6 +86,9 @@ interface SchedulerConfig {
 
     /** Verbose logging */
     verbose: boolean;
+
+    /** Enable budget enforcement */
+    enableBudgeter: boolean;
 }
 
 /** Default configuration */
@@ -87,6 +100,7 @@ const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
     maxConsecutiveErrors: 3,
     errorPauseDurationMs: 300000, // 5 minutes
     verbose: true,
+    enableBudgeter: true,
 };
 
 // ============================================
@@ -105,16 +119,49 @@ export class SaraScheduler {
     private cronJob: NodeJS.Timeout | null = null;
     private isProcessing: boolean = false;
     private shutdownRequested: boolean = false;
+    private budgeter: Budgeter | null = null;
+    private budgetResumeTimer: NodeJS.Timeout | null = null;
+    private isPaused: boolean = false;
+
+    private static instance: SaraScheduler | null = null;
+
+    /**
+     * Get singleton instance
+     */
+    public static getInstance(): SaraScheduler {
+        if (!SaraScheduler.instance) {
+            SaraScheduler.instance = createScheduler();
+        }
+        return SaraScheduler.instance;
+    }
 
     constructor(config: Partial<SchedulerConfig> = {}) {
         this.config = { ...DEFAULT_SCHEDULER_CONFIG, ...config };
+        // Initialize simple metrics first to avoid errors if budgeter logic needs them, though here budgeter is init after
+        // Actually budgeter init is safe.
+        // We need to call initializeMetrics AFTER checking budgeter if we want budget status, 
+        // OR we handle null budgeter in initializeMetrics (which we do).
+
+        // Initialize budgeter if enabled
+        if (this.config.enableBudgeter) {
+            this.budgeter = createBudgeter({
+                verbose: this.config.verbose,
+                onBudgetExhausted: (status) => this.handleBudgetExhausted(status),
+            });
+        }
+
         this.metrics = this.initializeMetrics();
+
+        if (!SaraScheduler.instance) {
+            SaraScheduler.instance = this;
+        }
     }
 
     /**
      * Initialize health metrics
      */
     private initializeMetrics(): HealthMetrics {
+        const budgetStatus = this.budgeter?.getStatus();
         return {
             totalPulses: 0,
             successfulPulses: 0,
@@ -125,6 +172,8 @@ export class SaraScheduler {
             lastPulseAt: null,
             lastError: null,
             consecutiveErrors: 0,
+            dailyCost: budgetStatus?.dailyCost || 0,
+            budgetLimit: budgetStatus?.dailyLimit || 0,
         };
     }
 
@@ -190,6 +239,13 @@ export class SaraScheduler {
         // Check if shutdown requested
         if (this.shutdownRequested) {
             this.log('🛑 Shutdown solicitado. Ignorando pulso.');
+            return;
+        }
+
+        // Check if paused
+        if (this.isPaused) {
+            // Pulse stays alive but skips processing
+            // We can optionally log "Heartbeat active (paused)" every N cycles if desired
             return;
         }
 
@@ -289,6 +345,81 @@ export class SaraScheduler {
         this.state = 'STOPPED';
         this.printHealthSummary();
         this.log('✅ Scheduler parado graciosamente.');
+    }
+
+    /**
+     * Handle budget exhaustion - enter sleep mode until midnight
+     */
+    private handleBudgetExhausted(status: BudgetStatus): void {
+        this.log('💤 Orçamento diário atingido. Vou dormir para economizar...');
+        this.log(`   Gasto: $${status.dailyCost.toFixed(4)} / $${status.dailyLimit.toFixed(2)}`);
+        this.state = 'BUDGET_EXHAUSTED';
+
+        // Update metrics
+        this.metrics.dailyCost = status.dailyCost;
+        this.metrics.budgetLimit = status.dailyLimit;
+
+        // Schedule auto-resume at midnight
+        if (this.budgetResumeTimer) {
+            clearTimeout(this.budgetResumeTimer);
+        }
+
+        this.budgetResumeTimer = setTimeout(() => {
+            this.log('🌅 Novo dia! Retomando operações...');
+            if (this.budgeter) {
+                this.budgeter.clearHaltSignal();
+            }
+            this.state = 'IDLE';
+        }, status.msUntilReset);
+
+        this.log(`   Retorno programado em ${Math.ceil(status.msUntilReset / 3600000)}h`);
+
+        // Log security event
+        this.logSecurityEvent('budget_exhausted', {
+            dailyCost: status.dailyCost,
+            dailyLimit: status.dailyLimit,
+            msUntilReset: status.msUntilReset,
+        });
+    }
+
+    /**
+     * Emergency stop - triggered by kill-switch command
+     */
+    async emergencyStop(source: string): Promise<void> {
+        this.log(`🚨 EMERGENCY STOP ativado por: ${source}`);
+
+        if (this.budgeter) {
+            this.budgeter.handleKillSwitch(source);
+        }
+
+        // Log security event
+        this.logSecurityEvent('emergency_stop', {
+            source,
+            timestamp: new Date().toISOString(),
+        });
+
+        await this.stop();
+    }
+
+    /**
+     * Check if a message is a kill-switch command
+     */
+    isKillSwitchCommand(message: string): boolean {
+        return this.budgeter?.isKillSwitchCommand(message) || false;
+    }
+
+    /**
+     * Get budget status
+     */
+    getBudgetStatus(): BudgetStatus | null {
+        return this.budgeter?.getStatus() || null;
+    }
+
+    /**
+     * Get sleep message for channels
+     */
+    getSleepMessage(): string {
+        return this.budgeter?.generateSleepMessage() || 'Sistema em pausa.';
     }
 
     /**
@@ -408,14 +539,17 @@ export function createScheduler(): SaraScheduler {
 // ============================================
 
 async function main(): Promise<void> {
-    const scheduler = createScheduler();
+    const scheduler = SaraScheduler.getInstance();
     await scheduler.start();
 
     // Keep process alive
     await new Promise(() => { });
 }
 
-main().catch((error) => {
-    console.error('Scheduler failed to start:', error);
-    process.exit(1);
-});
+// Only run if called directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main().catch((error) => {
+        console.error('Scheduler failed to start:', error);
+        process.exit(1);
+    });
+}

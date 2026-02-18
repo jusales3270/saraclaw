@@ -148,12 +148,12 @@ services:
 # NETWORKS
 # ============================================
 networks:
-  # Rede interna para o gateway
+  # Rede interna para o gateway (No Internet Access)
   saraclaw-internal:
     driver: bridge
-    internal: false
+    internal: true
   
-  # Rede isolada para sandboxes (opcional internet para browser)
+  # Rede isolada para sandboxes (Internet OK for browser)
   saraclaw-sandbox:
     driver: bridge
     internal: false

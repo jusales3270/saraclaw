@@ -85,6 +85,10 @@ const BASE_METHODS = [
   "chat.history",
   "chat.abort",
   "chat.send",
+  // Sara autonomous entity methods
+  "sara.status",
+  "sara.emergency-stop",
+  "sara.monologue",
 ];
 
 export function listGatewayMethods(): string[] {
@@ -111,4 +115,7 @@ export const GATEWAY_EVENTS = [
   "voicewake.changed",
   "exec.approval.requested",
   "exec.approval.resolved",
+  // Sara autonomous entity events
+  "sara.state",
+  "sara.monologue",
 ];
