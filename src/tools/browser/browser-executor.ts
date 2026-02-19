@@ -10,6 +10,8 @@
 
 import { NetworkJail, createNetworkJail, validateUrl } from './network-jail.js';
 import { ContentFilter, createContentFilter, UrlCheckResult, ContentFilterResult } from './content-filter.js';
+import { AccessRouter, createAccessRouter } from './scout/access-router.js';
+import type { RoutingDecision, ScoutConfig } from './scout/scout-types.js';
 
 // ============================================
 // TYPES
@@ -100,6 +102,12 @@ export interface BrowserExecutorConfig {
     /** Enable network jail */
     networkJailEnabled: boolean;
 
+    /** Enable Scout module for WebMCP detection */
+    useScout: boolean;
+
+    /** Scout-specific configuration overrides */
+    scoutConfig?: Partial<ScoutConfig>;
+
     /** Log all operations */
     verbose: boolean;
 }
@@ -113,6 +121,7 @@ export const DEFAULT_BROWSER_EXECUTOR_CONFIG: BrowserExecutorConfig = {
     containerTimeoutSeconds: 120,
     memoryLimit: '2g',
     networkJailEnabled: true,
+    useScout: false,
     verbose: false,
 };
 
@@ -129,12 +138,17 @@ export class SafeBrowserExecutor {
     private config: BrowserExecutorConfig;
     private networkJail: NetworkJail;
     private contentFilter: ContentFilter;
+    private accessRouter: AccessRouter | null;
+    private lastRoutingDecision: RoutingDecision | null = null;
     private requestCount: { minute: number; hour: number; lastReset: Date };
 
     constructor(config: Partial<BrowserExecutorConfig> = {}) {
         this.config = { ...DEFAULT_BROWSER_EXECUTOR_CONFIG, ...config };
         this.networkJail = createNetworkJail();
         this.contentFilter = createContentFilter();
+        this.accessRouter = this.config.useScout
+            ? createAccessRouter({ ...this.config.scoutConfig, verbose: this.config.verbose })
+            : null;
         this.requestCount = {
             minute: 0,
             hour: 0,
@@ -177,6 +191,27 @@ export class SafeBrowserExecutor {
      */
     async navigate(url: string, options: NavigationOptions = {}): Promise<BrowserSearchResult> {
         const startTime = Date.now();
+
+        // Scout pre-check: probe for WebMCP support
+        if (this.accessRouter) {
+            const decision = await this.accessRouter.route(url);
+            this.lastRoutingDecision = decision;
+            this.log(`[Scout] ${decision.path.toUpperCase()} path chosen for ${url}`);
+
+            if (decision.path === 'webmcp' && decision.matchedTool) {
+                // WebMCP path: return structured result without heavy fetching
+                return {
+                    url,
+                    title: `WebMCP: ${decision.matchedTool.name}`,
+                    content: decision.monologue,
+                    blocked: false,
+                    originalLength: decision.monologue.length,
+                    warnings: [],
+                    fetchedAt: new Date(),
+                };
+            }
+            // CUA fallback: continue with normal navigation below
+        }
 
         // Pre-flight checks
         const preflightResult = this.preflightCheck(url);
@@ -411,17 +446,36 @@ export class SafeBrowserExecutor {
      * Get executor summary
      */
     getSummary(): string {
-        return [
+        const lines = [
             'SafeBrowserExecutor:',
             `  Sandbox: ${this.config.useSandbox ? 'enabled' : 'DISABLED (testing)'}`,
             `  NetworkJail: ${this.config.networkJailEnabled ? 'enabled' : 'disabled'}`,
+            `  Scout: ${this.accessRouter ? 'enabled' : 'disabled'}`,
             `  Requests this minute: ${this.requestCount.minute}/30`,
             `  Requests this hour: ${this.requestCount.hour}/200`,
             '',
             this.networkJail.getSummary(),
             '',
             this.contentFilter.getSummary(),
-        ].join('\n');
+        ];
+        if (this.accessRouter) {
+            lines.push('', this.accessRouter.getSummary());
+        }
+        return lines.join('\n');
+    }
+
+    /**
+     * Get the last routing decision made by the Scout module.
+     */
+    getLastRoutingDecision(): RoutingDecision | null {
+        return this.lastRoutingDecision;
+    }
+
+    /**
+     * Get the AccessRouter instance (if Scout is enabled).
+     */
+    getAccessRouter(): AccessRouter | null {
+        return this.accessRouter;
     }
 }
 

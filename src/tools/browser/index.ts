@@ -8,6 +8,7 @@ export * from './network-jail.js';
 export * from './content-filter.js';
 export * from './browser-executor.js';
 export * from './cua/index.js';
+export * from './scout/index.js';
 
 // Convenience re-exports
 export {
