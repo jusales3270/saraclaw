@@ -92,8 +92,8 @@ describe("session cost usage", () => {
       },
     } as OpenClawConfig;
 
-    const originalState = process.env.OPENCLAW_STATE_DIR;
-    process.env.OPENCLAW_STATE_DIR = root;
+    const originalState = process.env.SARACLAW_STATE_DIR;
+    process.env.SARACLAW_STATE_DIR = root;
     try {
       const summary = await loadCostUsageSummary({ days: 30, config });
       expect(summary.daily.length).toBe(1);
@@ -101,9 +101,9 @@ describe("session cost usage", () => {
       expect(summary.totals.totalCost).toBeCloseTo(0.03003, 5);
     } finally {
       if (originalState === undefined) {
-        delete process.env.OPENCLAW_STATE_DIR;
+        delete process.env.SARACLAW_STATE_DIR;
       } else {
-        process.env.OPENCLAW_STATE_DIR = originalState;
+        process.env.SARACLAW_STATE_DIR = originalState;
       }
     }
   });

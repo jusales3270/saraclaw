@@ -4,7 +4,6 @@ node_modules
 docker-compose.extra.yml
 dist
 *.bun-build
-pnpm-lock.yaml
 bun.lock
 bun.lockb
 coverage
@@ -71,3 +70,10 @@ USER.md
 
 # local tooling
 .serena/
+
+# Private deployment configs (may contain secrets)
+fly.private.toml
+
+# Runtime databases
+*.db
+usage.db

@@ -127,13 +127,13 @@ const spawnGatewayInstance = async (name: string): Promise<GatewayInstance> => {
         env: {
           ...process.env,
           HOME: homeDir,
-          OPENCLAW_CONFIG_PATH: configPath,
-          OPENCLAW_STATE_DIR: stateDir,
-          OPENCLAW_GATEWAY_TOKEN: "",
-          OPENCLAW_GATEWAY_PASSWORD: "",
-          OPENCLAW_SKIP_CHANNELS: "1",
-          OPENCLAW_SKIP_BROWSER_CONTROL_SERVER: "1",
-          OPENCLAW_SKIP_CANVAS_HOST: "1",
+          SARACLAW_CONFIG_PATH: configPath,
+          SARACLAW_STATE_DIR: stateDir,
+          SARACLAW_GATEWAY_TOKEN: "",
+          SARACLAW_GATEWAY_PASSWORD: "",
+          SARACLAW_SKIP_CHANNELS: "1",
+          SARACLAW_SKIP_BROWSER_CONTROL_SERVER: "1",
+          SARACLAW_SKIP_CANVAS_HOST: "1",
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
@@ -344,8 +344,8 @@ const waitForNodeStatus = async (inst: GatewayInstance, nodeId: string, timeoutM
     const list = (await runCliJson(
       ["nodes", "status", "--json", "--url", `ws://127.0.0.1:${inst.port}`],
       {
-        OPENCLAW_GATEWAY_TOKEN: inst.gatewayToken,
-        OPENCLAW_GATEWAY_PASSWORD: "",
+        SARACLAW_GATEWAY_TOKEN: inst.gatewayToken,
+        SARACLAW_GATEWAY_PASSWORD: "",
       },
     )) as NodeListPayload;
     const match = list.nodes?.find((n) => n.nodeId === nodeId);
@@ -381,14 +381,14 @@ describe("gateway multi-instance e2e", () => {
 
       const [healthA, healthB] = (await Promise.all([
         runCliJson(["health", "--json", "--timeout", "10000"], {
-          OPENCLAW_GATEWAY_PORT: String(gwA.port),
-          OPENCLAW_GATEWAY_TOKEN: gwA.gatewayToken,
-          OPENCLAW_GATEWAY_PASSWORD: "",
+          SARACLAW_GATEWAY_PORT: String(gwA.port),
+          SARACLAW_GATEWAY_TOKEN: gwA.gatewayToken,
+          SARACLAW_GATEWAY_PASSWORD: "",
         }),
         runCliJson(["health", "--json", "--timeout", "10000"], {
-          OPENCLAW_GATEWAY_PORT: String(gwB.port),
-          OPENCLAW_GATEWAY_TOKEN: gwB.gatewayToken,
-          OPENCLAW_GATEWAY_PASSWORD: "",
+          SARACLAW_GATEWAY_PORT: String(gwB.port),
+          SARACLAW_GATEWAY_TOKEN: gwB.gatewayToken,
+          SARACLAW_GATEWAY_PASSWORD: "",
         }),
       ])) as [HealthPayload, HealthPayload];
       expect(healthA.ok).toBe(true);

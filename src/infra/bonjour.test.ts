@@ -86,8 +86,8 @@ describe("gateway bonjour advertiser", () => {
     process.env.NODE_ENV = "development";
 
     vi.spyOn(os, "hostname").mockReturnValue("test-host");
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
 
     const destroy = vi.fn().mockResolvedValue(undefined);
     const advertise = vi.fn().mockImplementation(
@@ -182,7 +182,7 @@ describe("gateway bonjour advertiser", () => {
     process.env.NODE_ENV = "development";
 
     vi.spyOn(os, "hostname").mockReturnValue("test-host");
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
 
     const destroy = vi.fn().mockResolvedValue(undefined);
     const advertise = vi.fn().mockResolvedValue(undefined);
@@ -220,7 +220,7 @@ describe("gateway bonjour advertiser", () => {
     process.env.NODE_ENV = "development";
 
     vi.spyOn(os, "hostname").mockReturnValue("test-host");
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
 
     const destroy = vi.fn().mockResolvedValue(undefined);
     const advertise = vi.fn().mockResolvedValue(undefined);
@@ -265,7 +265,7 @@ describe("gateway bonjour advertiser", () => {
 
     vi.useFakeTimers();
     vi.spyOn(os, "hostname").mockReturnValue("test-host");
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
 
     const destroy = vi.fn().mockResolvedValue(undefined);
     const advertise = vi
@@ -313,7 +313,7 @@ describe("gateway bonjour advertiser", () => {
     process.env.NODE_ENV = "development";
 
     vi.spyOn(os, "hostname").mockReturnValue("test-host");
-    process.env.OPENCLAW_MDNS_HOSTNAME = "test-host";
+    process.env.SARACLAW_MDNS_HOSTNAME = "test-host";
 
     const destroy = vi.fn().mockResolvedValue(undefined);
     const advertise = vi.fn(() => {

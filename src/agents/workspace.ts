@@ -10,7 +10,7 @@ export function resolveDefaultAgentWorkspaceDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const profile = env.OPENCLAW_PROFILE?.trim();
+  const profile = env.SARACLAW_PROFILE?.trim();
   if (profile && profile.toLowerCase() !== "default") {
     return path.join(homedir(), ".openclaw", `workspace-${profile}`);
   }

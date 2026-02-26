@@ -18,7 +18,7 @@ function snapshotEnv(): EnvSnapshot {
     userProfile: process.env.USERPROFILE,
     homeDrive: process.env.HOMEDRIVE,
     homePath: process.env.HOMEPATH,
-    stateDir: process.env.OPENCLAW_STATE_DIR,
+    stateDir: process.env.SARACLAW_STATE_DIR,
   };
 }
 
@@ -34,7 +34,7 @@ function restoreEnv(snapshot: EnvSnapshot) {
   restoreKey("USERPROFILE", snapshot.userProfile);
   restoreKey("HOMEDRIVE", snapshot.homeDrive);
   restoreKey("HOMEPATH", snapshot.homePath);
-  restoreKey("OPENCLAW_STATE_DIR", snapshot.stateDir);
+  restoreKey("SARACLAW_STATE_DIR", snapshot.stateDir);
 }
 
 function snapshotExtraEnv(keys: string[]): Record<string, string | undefined> {
@@ -58,7 +58,7 @@ function restoreExtraEnv(snapshot: Record<string, string | undefined>) {
 function setTempHome(base: string) {
   process.env.HOME = base;
   process.env.USERPROFILE = base;
-  process.env.OPENCLAW_STATE_DIR = path.join(base, ".openclaw");
+  process.env.SARACLAW_STATE_DIR = path.join(base, ".openclaw");
 
   if (process.platform !== "win32") {
     return;

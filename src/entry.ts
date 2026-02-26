@@ -26,10 +26,10 @@ function hasExperimentalWarningSuppressed(nodeOptions: string): boolean {
 }
 
 function ensureExperimentalWarningSuppressed(): boolean {
-  if (isTruthyEnvValue(process.env.OPENCLAW_NO_RESPAWN)) {
+  if (isTruthyEnvValue(process.env.SARACLAW_NO_RESPAWN)) {
     return false;
   }
-  if (isTruthyEnvValue(process.env.OPENCLAW_NODE_OPTIONS_READY)) {
+  if (isTruthyEnvValue(process.env.SARACLAW_NODE_OPTIONS_READY)) {
     return false;
   }
   const nodeOptions = process.env.NODE_OPTIONS ?? "";
@@ -37,7 +37,7 @@ function ensureExperimentalWarningSuppressed(): boolean {
     return false;
   }
 
-  process.env.OPENCLAW_NODE_OPTIONS_READY = "1";
+  process.env.SARACLAW_NODE_OPTIONS_READY = "1";
   process.env.NODE_OPTIONS = `${nodeOptions} ${EXPERIMENTAL_WARNING_FLAG}`.trim();
 
   const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {

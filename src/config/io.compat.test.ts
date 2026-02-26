@@ -49,11 +49,11 @@ describe("config io paths", () => {
     });
   });
 
-  it("honors explicit OPENCLAW_CONFIG_PATH override", async () => {
+  it("honors explicit SARACLAW_CONFIG_PATH override", async () => {
     await withTempHome(async (home) => {
       const customPath = await writeConfig(home, ".openclaw", 20002, "custom.json");
       const io = createConfigIO({
-        env: { OPENCLAW_CONFIG_PATH: customPath } as NodeJS.ProcessEnv,
+        env: { SARACLAW_CONFIG_PATH: customPath } as NodeJS.ProcessEnv,
         homedir: () => home,
       });
       expect(io.configPath).toBe(customPath);

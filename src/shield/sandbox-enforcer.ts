@@ -5,11 +5,23 @@
  * Ensures all dangerous operations run in isolated containers.
  */
 
-import { exec, spawn, ChildProcess } from 'child_process';
+import { execFile, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
 import { randomBytes } from 'crypto';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+/** Strict pattern for container names — only lowercase alphanumeric and hyphens */
+const CONTAINER_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}$/;
+
+/**
+ * Validate that a container name is safe (no injection possible)
+ */
+function validateContainerName(name: string): void {
+    if (!CONTAINER_NAME_REGEX.test(name)) {
+        throw new Error(`Invalid container name: "${name}" — must match ${CONTAINER_NAME_REGEX}`);
+    }
+}
 
 /**
  * Sandbox execution configuration
@@ -100,7 +112,7 @@ export class SandboxEnforcer {
      */
     async isDockerAvailable(): Promise<boolean> {
         try {
-            await execAsync('docker --version');
+            await execFileAsync('docker', ['--version']);
             return true;
         } catch {
             return false;
@@ -180,11 +192,11 @@ export class SandboxEnforcer {
             this.activeContainers.add(containerName);
 
             // Collect output
-            process.stdout?.on('data', (data) => {
+            process.stdout?.on('data', (data: Uint8Array) => {
                 stdout += data.toString();
             });
 
-            process.stderr?.on('data', (data) => {
+            process.stderr?.on('data', (data: Uint8Array) => {
                 stderr += data.toString();
             });
 
@@ -198,7 +210,7 @@ export class SandboxEnforcer {
 
             // Wait for process or timeout
             const processPromise = new Promise<number>((resolve) => {
-                process.on('close', (code) => {
+                process.on('close', (code: number | null) => {
                     resolve(code ?? -1);
                 });
             });
@@ -212,7 +224,7 @@ export class SandboxEnforcer {
 
             // Get container ID if still running
             try {
-                const { stdout: idOutput } = await execAsync(`docker ps -aq --filter "name=${containerName}"`);
+                const { stdout: idOutput } = await execFileAsync('docker', ['ps', '-aq', '--filter', `name=${containerName}`]);
                 containerId = idOutput.trim();
             } catch {
                 containerId = containerName;
@@ -239,8 +251,9 @@ export class SandboxEnforcer {
      * Kill a running container
      */
     async killContainer(containerName: string): Promise<boolean> {
+        validateContainerName(containerName);
         try {
-            await execAsync(`docker kill ${containerName}`);
+            await execFileAsync('docker', ['kill', containerName]);
             console.log(`[Sandbox] Killed container ${containerName}`);
             return true;
         } catch {
@@ -252,9 +265,10 @@ export class SandboxEnforcer {
      * Clean up a container
      */
     async cleanup(containerName: string): Promise<boolean> {
+        validateContainerName(containerName);
         try {
             // Force remove the container
-            await execAsync(`docker rm -f ${containerName}`);
+            await execFileAsync('docker', ['rm', '-f', containerName]);
             return true;
         } catch {
             // Container may already be removed

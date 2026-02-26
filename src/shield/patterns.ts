@@ -97,9 +97,9 @@ export const SENSITIVE_PATTERNS: PatternDefinition[] = [
     {
         name: 'aws_secret_key',
         type: 'secret',
-        pattern: '[a-zA-Z0-9/+]{40}',
+        pattern: '(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY|SecretAccessKey)\\s*[=:]\\s*[a-zA-Z0-9/+]{40}',
         severity: 'critical',
-        description: 'Potential AWS Secret Access Key',
+        description: 'AWS Secret Access Key (with context)',
     },
     {
         name: 'github_token',

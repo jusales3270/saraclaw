@@ -3,15 +3,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 let previousProfile: string | undefined;
 
 beforeAll(() => {
-  previousProfile = process.env.OPENCLAW_PROFILE;
-  process.env.OPENCLAW_PROFILE = "isolated";
+  previousProfile = process.env.SARACLAW_PROFILE;
+  process.env.SARACLAW_PROFILE = "isolated";
 });
 
 afterAll(() => {
   if (previousProfile === undefined) {
-    delete process.env.OPENCLAW_PROFILE;
+    delete process.env.SARACLAW_PROFILE;
   } else {
-    process.env.OPENCLAW_PROFILE = previousProfile;
+    process.env.SARACLAW_PROFILE = previousProfile;
   }
 });
 
@@ -344,8 +344,8 @@ describe("statusCommand", () => {
   });
 
   it("shows gateway auth when reachable", async () => {
-    const prevToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-    process.env.OPENCLAW_GATEWAY_TOKEN = "abcd1234";
+    const prevToken = process.env.SARACLAW_GATEWAY_TOKEN;
+    process.env.SARACLAW_GATEWAY_TOKEN = "abcd1234";
     try {
       mocks.probeGateway.mockResolvedValueOnce({
         ok: true,
@@ -364,9 +364,9 @@ describe("statusCommand", () => {
       expect(logs.some((l) => l.includes("auth token"))).toBe(true);
     } finally {
       if (prevToken === undefined) {
-        delete process.env.OPENCLAW_GATEWAY_TOKEN;
+        delete process.env.SARACLAW_GATEWAY_TOKEN;
       } else {
-        process.env.OPENCLAW_GATEWAY_TOKEN = prevToken;
+        process.env.SARACLAW_GATEWAY_TOKEN = prevToken;
       }
     }
   });

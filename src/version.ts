@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 
-declare const __OPENCLAW_VERSION__: string | undefined;
+declare const __SARACLAW_VERSION__: string | undefined;
 
 function readVersionFromPackageJson(): string | null {
   try {
@@ -16,7 +16,7 @@ function readVersionFromPackageJson(): string | null {
 // - Embedded/bundled builds: injected define or env var.
 // - Dev/npm builds: package.json.
 export const VERSION =
-  (typeof __OPENCLAW_VERSION__ === "string" && __OPENCLAW_VERSION__) ||
-  process.env.OPENCLAW_BUNDLED_VERSION ||
+  (typeof __SARACLAW_VERSION__ === "string" && __SARACLAW_VERSION__) ||
+  process.env.SARACLAW_BUNDLED_VERSION ||
   readVersionFromPackageJson() ||
   "0.0.0";

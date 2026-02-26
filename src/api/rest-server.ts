@@ -39,10 +39,17 @@ export class RestServer {
         // C2: Restricted CORS
         // ========================================
         const allowedOrigins = getAllowedOrigins();
+        const isProduction = process.env.NODE_ENV === 'production';
         app.use(cors({
             origin: (origin, callback) => {
-                // Allow requests with no origin (curl, server-to-server)
-                if (!origin) return callback(null, true);
+                // In production, only allow configured origins
+                // In development, also allow no-origin requests (curl, Postman)
+                if (!origin) {
+                    if (isProduction) {
+                        return callback(new Error('CORS: requests without Origin header are blocked in production'));
+                    }
+                    return callback(null, true);
+                }
                 if (allowedOrigins.includes(origin)) {
                     return callback(null, true);
                 }

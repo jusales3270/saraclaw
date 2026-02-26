@@ -105,18 +105,18 @@ export function applyCliProfileEnv(params: {
   }
 
   // Convenience only: fill defaults, never override explicit env values.
-  env.OPENCLAW_PROFILE = profile;
+  env.SARACLAW_PROFILE = profile;
 
-  const stateDir = env.OPENCLAW_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
-  if (!env.OPENCLAW_STATE_DIR?.trim()) {
-    env.OPENCLAW_STATE_DIR = stateDir;
+  const stateDir = env.SARACLAW_STATE_DIR?.trim() || resolveProfileStateDir(profile, homedir);
+  if (!env.SARACLAW_STATE_DIR?.trim()) {
+    env.SARACLAW_STATE_DIR = stateDir;
   }
 
-  if (!env.OPENCLAW_CONFIG_PATH?.trim()) {
-    env.OPENCLAW_CONFIG_PATH = path.join(stateDir, "openclaw.json");
+  if (!env.SARACLAW_CONFIG_PATH?.trim()) {
+    env.SARACLAW_CONFIG_PATH = path.join(stateDir, "openclaw.json");
   }
 
-  if (profile === "dev" && !env.OPENCLAW_GATEWAY_PORT?.trim()) {
-    env.OPENCLAW_GATEWAY_PORT = "19001";
+  if (profile === "dev" && !env.SARACLAW_GATEWAY_PORT?.trim()) {
+    env.SARACLAW_GATEWAY_PORT = "19001";
   }
 }

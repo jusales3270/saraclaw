@@ -15,9 +15,9 @@ describe("ensureOpenClawCliOnPath", () => {
       await fs.chmod(cliPath, 0o755);
 
       const originalPath = process.env.PATH;
-      const originalFlag = process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+      const originalFlag = process.env.SARACLAW_PATH_BOOTSTRAPPED;
       process.env.PATH = "/usr/bin";
-      delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+      delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
       try {
         ensureOpenClawCliOnPath({
           execPath: cliPath,
@@ -30,9 +30,9 @@ describe("ensureOpenClawCliOnPath", () => {
       } finally {
         process.env.PATH = originalPath;
         if (originalFlag === undefined) {
-          delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+          delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
         } else {
-          process.env.OPENCLAW_PATH_BOOTSTRAPPED = originalFlag;
+          process.env.SARACLAW_PATH_BOOTSTRAPPED = originalFlag;
         }
       }
     } finally {
@@ -42,9 +42,9 @@ describe("ensureOpenClawCliOnPath", () => {
 
   it("is idempotent", () => {
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.SARACLAW_PATH_BOOTSTRAPPED;
     process.env.PATH = "/bin";
-    process.env.OPENCLAW_PATH_BOOTSTRAPPED = "1";
+    process.env.SARACLAW_PATH_BOOTSTRAPPED = "1";
     try {
       ensureOpenClawCliOnPath({
         execPath: "/tmp/does-not-matter",
@@ -56,9 +56,9 @@ describe("ensureOpenClawCliOnPath", () => {
     } finally {
       process.env.PATH = originalPath;
       if (originalFlag === undefined) {
-        delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+        delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
       } else {
-        process.env.OPENCLAW_PATH_BOOTSTRAPPED = originalFlag;
+        process.env.SARACLAW_PATH_BOOTSTRAPPED = originalFlag;
       }
     }
   });
@@ -66,7 +66,7 @@ describe("ensureOpenClawCliOnPath", () => {
   it("prepends mise shims when available", async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-path-"));
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.SARACLAW_PATH_BOOTSTRAPPED;
     const originalMiseDataDir = process.env.MISE_DATA_DIR;
     try {
       const appBinDir = path.join(tmp, "AppBin");
@@ -86,7 +86,7 @@ describe("ensureOpenClawCliOnPath", () => {
       await fs.mkdir(shimsDir, { recursive: true });
       process.env.MISE_DATA_DIR = miseDataDir;
       process.env.PATH = "/usr/bin";
-      delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+      delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
 
       ensureOpenClawCliOnPath({
         execPath: appCli,
@@ -106,9 +106,9 @@ describe("ensureOpenClawCliOnPath", () => {
     } finally {
       process.env.PATH = originalPath;
       if (originalFlag === undefined) {
-        delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+        delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
       } else {
-        process.env.OPENCLAW_PATH_BOOTSTRAPPED = originalFlag;
+        process.env.SARACLAW_PATH_BOOTSTRAPPED = originalFlag;
       }
       if (originalMiseDataDir === undefined) {
         delete process.env.MISE_DATA_DIR;
@@ -122,7 +122,7 @@ describe("ensureOpenClawCliOnPath", () => {
   it("prepends Linuxbrew dirs when present", async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-path-"));
     const originalPath = process.env.PATH;
-    const originalFlag = process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+    const originalFlag = process.env.SARACLAW_PATH_BOOTSTRAPPED;
     const originalHomebrewPrefix = process.env.HOMEBREW_PREFIX;
     const originalHomebrewBrewFile = process.env.HOMEBREW_BREW_FILE;
     const originalXdgBinHome = process.env.XDG_BIN_HOME;
@@ -136,7 +136,7 @@ describe("ensureOpenClawCliOnPath", () => {
       await fs.mkdir(linuxbrewSbin, { recursive: true });
 
       process.env.PATH = "/usr/bin";
-      delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+      delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
       delete process.env.HOMEBREW_PREFIX;
       delete process.env.HOMEBREW_BREW_FILE;
       delete process.env.XDG_BIN_HOME;
@@ -155,9 +155,9 @@ describe("ensureOpenClawCliOnPath", () => {
     } finally {
       process.env.PATH = originalPath;
       if (originalFlag === undefined) {
-        delete process.env.OPENCLAW_PATH_BOOTSTRAPPED;
+        delete process.env.SARACLAW_PATH_BOOTSTRAPPED;
       } else {
-        process.env.OPENCLAW_PATH_BOOTSTRAPPED = originalFlag;
+        process.env.SARACLAW_PATH_BOOTSTRAPPED = originalFlag;
       }
       if (originalHomebrewPrefix === undefined) {
         delete process.env.HOMEBREW_PREFIX;

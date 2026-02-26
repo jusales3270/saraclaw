@@ -130,16 +130,31 @@ export class TheCensor {
 
         // Scan for custom patterns
         for (const customPattern of this.config.customPatterns) {
-            // M2 FIX: Prevent ReDoS by limiting pattern length
-            if (customPattern.length > 50) {
-                console.warn(`[Censor] Custom pattern too long, skipping: ${customPattern.substring(0, 10)}...`);
+            // ReDoS protection: reject patterns with known catastrophic constructs
+            if (customPattern.length > 200) {
+                console.warn(`[Censor] Custom pattern too long (${customPattern.length} chars), skipping`);
                 continue;
             }
+
+            // Detect common ReDoS-prone constructs: nested quantifiers like (a+)+, (a*)*
+            const redosIndicators = /(\([^)]*[+*][^)]*\))[+*]|\(\?:[^)]*[+*][^)]*\)[+*]/;
+            if (redosIndicators.test(customPattern)) {
+                console.warn(`[Censor] Custom pattern rejected (potential ReDoS): ${customPattern.substring(0, 20)}...`);
+                continue;
+            }
+
             try {
                 const regex = new RegExp(customPattern, 'gi');
                 let match: RegExpExecArray | null;
+                let matchCount = 0;
+                const MAX_MATCHES_PER_PATTERN = 100;
 
                 while ((match = regex.exec(output)) !== null) {
+                    matchCount++;
+                    if (matchCount > MAX_MATCHES_PER_PATTERN) {
+                        console.warn(`[Censor] Custom pattern exceeded max matches (${MAX_MATCHES_PER_PATTERN}), stopping`);
+                        break;
+                    }
                     matches.push({
                         type: 'custom',
                         pattern: 'custom',

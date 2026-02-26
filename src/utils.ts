@@ -249,7 +249,7 @@ export function resolveConfigDir(
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir,
 ): string {
-  const override = env.OPENCLAW_STATE_DIR?.trim() || env.CLAWDBOT_STATE_DIR?.trim();
+  const override = env.SARACLAW_STATE_DIR?.trim() || env.SARACLAW_STATE_DIR?.trim();
   if (override) {
     return resolveUserPath(override);
   }
@@ -334,5 +334,5 @@ export function formatTerminalLink(
   return `\u001b]8;;${safeUrl}\u0007${safeLabel}\u001b]8;;\u0007`;
 }
 
-// Configuration root; can be overridden via OPENCLAW_STATE_DIR.
+// Configuration root; can be overridden via SARACLAW_STATE_DIR.
 export const CONFIG_DIR = resolveConfigDir();

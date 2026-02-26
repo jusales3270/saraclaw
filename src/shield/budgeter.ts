@@ -24,38 +24,56 @@ declare const process: { env: Record<string, string | undefined> };
 // ============================================
 
 /**
- * Token pricing per model
- * Updated based on current provider pricing (Feb 2026)
+ * Token pricing per model (USD per 1K tokens)
+ * Updated: February 2026
  */
 export const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
-    // Anthropic
+    // Anthropic (2026)
+    'anthropic/claude-4-opus': { input: 0.015, output: 0.075 },
+    'anthropic/claude-4-sonnet': { input: 0.003, output: 0.015 },
+    'anthropic/claude-3.5-haiku': { input: 0.0008, output: 0.004 },
+    'claude-4-opus': { input: 0.015, output: 0.075 },
+    'claude-4-sonnet': { input: 0.003, output: 0.015 },
+    'claude-3.5-haiku': { input: 0.0008, output: 0.004 },
+    // Anthropic legacy
     'anthropic/claude-3.5-sonnet': { input: 0.003, output: 0.015 },
-    'anthropic/claude-3-opus': { input: 0.015, output: 0.075 },
-    'anthropic/claude-3-haiku': { input: 0.00025, output: 0.00125 },
     'claude-3.5-sonnet': { input: 0.003, output: 0.015 },
-    'claude-3-opus': { input: 0.015, output: 0.075 },
-    'claude-3-haiku': { input: 0.00025, output: 0.00125 },
 
-    // OpenAI
-    'openai/gpt-4': { input: 0.03, output: 0.06 },
+    // OpenAI (2026)
+    'openai/gpt-4.5': { input: 0.075, output: 0.15 },
+    'openai/gpt-4o': { input: 0.0025, output: 0.01 },
+    'openai/gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    'openai/o3': { input: 0.01, output: 0.04 },
+    'openai/o3-mini': { input: 0.0011, output: 0.0044 },
+    'openai/o4-mini': { input: 0.0011, output: 0.0044 },
+    'gpt-4.5': { input: 0.075, output: 0.15 },
+    'gpt-4o': { input: 0.0025, output: 0.01 },
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    'o3': { input: 0.01, output: 0.04 },
+    'o3-mini': { input: 0.0011, output: 0.0044 },
+    'o4-mini': { input: 0.0011, output: 0.0044 },
+    // OpenAI legacy
     'openai/gpt-4-turbo': { input: 0.01, output: 0.03 },
-    'openai/gpt-4o': { input: 0.005, output: 0.015 },
-    'openai/gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
-    'gpt-4': { input: 0.03, output: 0.06 },
     'gpt-4-turbo': { input: 0.01, output: 0.03 },
-    'gpt-4o': { input: 0.005, output: 0.015 },
-    'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
 
-    // Google
-    'google/gemini-pro': { input: 0.0005, output: 0.0015 },
+    // Google (2026)
+    'google/gemini-2.5-pro': { input: 0.00125, output: 0.005 },
+    'google/gemini-2.5-flash': { input: 0.000075, output: 0.0003 },
+    'google/gemini-2.0-flash': { input: 0.000075, output: 0.0003 },
+    'gemini-2.5-pro': { input: 0.00125, output: 0.005 },
+    'gemini-2.5-flash': { input: 0.000075, output: 0.0003 },
+    'gemini-2.0-flash': { input: 0.000075, output: 0.0003 },
+    // Google legacy
     'google/gemini-1.5-pro': { input: 0.00125, output: 0.005 },
-    'google/gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
-    'gemini-pro': { input: 0.0005, output: 0.0015 },
     'gemini-1.5-pro': { input: 0.00125, output: 0.005 },
-    'gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
 
-    // Default fallback
-    'default': { input: 0.01, output: 0.03 },
+    // Local models (free)
+    'ollama': { input: 0, output: 0 },
+    'local': { input: 0, output: 0 },
+    'llama': { input: 0, output: 0 },
+
+    // Default fallback (conservative estimate)
+    'default': { input: 0.005, output: 0.015 },
 };
 
 // ============================================

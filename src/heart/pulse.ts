@@ -256,7 +256,15 @@ async function loadKnowledgeFromOpenAugi(
     // 3. Filter by topic if provided
     // 4. Build knowledge context
 
-    // Simulated for testing
+    // SAFETY: Block simulated data in production
+    const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+    if (isProduction) {
+        console.warn('[PULSE] ⚠️  OpenAugi reader not yet implemented for production. Using empty context.');
+        return buildKnowledgeContext([]);
+    }
+
+    // Simulated for development/testing only
+    console.warn('[PULSE] Using simulated knowledge data (dev mode only)');
     const notes = [
         {
             title: 'Soberania Digital',
@@ -408,7 +416,12 @@ async function main(): Promise<void> {
     console.log('\n✅ Pulse concluído');
 }
 
-main().catch((error) => {
-    console.error('Pulse failed:', error);
-    process.exit(1);
-});
+import { fileURLToPath } from 'url';
+
+// Only run if called directly (prevent side effects on import)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main().catch((error) => {
+        console.error('Pulse failed:', error);
+        process.exit(1);
+    });
+}

@@ -198,24 +198,27 @@ export class SaraScheduler {
         this.state = 'IDLE';
         this.metrics = this.initializeMetrics();
 
-        // Parse cron expression and calculate interval
-        const intervalMs = this.cronToIntervalMs(this.config.cronExpression);
+        // Parse cron expression and set up recurring pulses using Croner
+        const { Cron } = await import('croner');
 
-        this.log(`Intervalo calculado: ${intervalMs / 1000}s (${intervalMs / 60000} min)`);
+        this.log(`Cron: ${this.config.cronExpression}`);
         this.log('');
 
         // Execute first pulse immediately
         this.log('❤️  Executando primeiro pulso...');
         await this.executePulse();
 
-        // Schedule recurring pulses
-        this.cronJob = setInterval(() => {
+        // Schedule recurring pulses with proper cron parsing
+        const job = new Cron(this.config.cronExpression, () => {
             if (!this.shutdownRequested) {
                 this.executePulse().catch(err => {
                     this.log(`Erro não tratado: ${err}`);
                 });
             }
-        }, intervalMs);
+        });
+
+        // Store for cleanup (using NodeJS.Timeout-compatible interface)
+        this.cronJob = job as unknown as NodeJS.Timeout;
 
         // Setup graceful shutdown
         this.setupShutdownHandlers();

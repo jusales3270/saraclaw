@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: openclaw
+    name: saraclaw
     runtime: docker
     plan: starter
     healthCheckPath: /health
@@ -9,13 +9,14 @@ services:
         value: "8080"
       - key: SETUP_PASSWORD
         sync: false
-      - key: OPENCLAW_STATE_DIR
-        value: /data/.openclaw
-      - key: OPENCLAW_WORKSPACE_DIR
+      - key: SARACLAW_STATE_DIR
+        value: /data/.saraclaw
+      - key: SARACLAW_WORKSPACE_DIR
         value: /data/workspace
-      - key: OPENCLAW_GATEWAY_TOKEN
+      - key: SARACLAW_GATEWAY_TOKEN
         generateValue: true
     disk:
-      name: openclaw-data
+      name: saraclaw-data
       mountPath: /data
       sizeGB: 1
+

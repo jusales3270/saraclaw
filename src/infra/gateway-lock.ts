@@ -179,7 +179,7 @@ export async function acquireGatewayLock(
   const env = opts.env ?? process.env;
   const allowInTests = opts.allowInTests === true;
   if (
-    env.OPENCLAW_ALLOW_MULTI_GATEWAY === "1" ||
+    env.SARACLAW_ALLOW_MULTI_GATEWAY === "1" ||
     (!allowInTests && (env.VITEST || env.NODE_ENV === "test"))
   ) {
     return null;

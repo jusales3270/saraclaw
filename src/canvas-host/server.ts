@@ -194,10 +194,10 @@ async function resolveFilePath(rootReal: string, urlPath: string) {
 }
 
 function isDisabledByEnv() {
-  if (isTruthyEnvValue(process.env.OPENCLAW_SKIP_CANVAS_HOST)) {
+  if (isTruthyEnvValue(process.env.SARACLAW_SKIP_CANVAS_HOST)) {
     return true;
   }
-  if (isTruthyEnvValue(process.env.OPENCLAW_SKIP_CANVAS_HOST)) {
+  if (isTruthyEnvValue(process.env.SARACLAW_SKIP_CANVAS_HOST)) {
     return true;
   }
   if (process.env.NODE_ENV === "test") {

@@ -18,11 +18,11 @@ describe("gateway tool", () => {
   it("schedules SIGUSR1 restart", async () => {
     vi.useFakeTimers();
     const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
-    const previousStateDir = process.env.OPENCLAW_STATE_DIR;
-    const previousProfile = process.env.OPENCLAW_PROFILE;
+    const previousStateDir = process.env.SARACLAW_STATE_DIR;
+    const previousProfile = process.env.SARACLAW_PROFILE;
     const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-test-"));
-    process.env.OPENCLAW_STATE_DIR = stateDir;
-    process.env.OPENCLAW_PROFILE = "isolated";
+    process.env.SARACLAW_STATE_DIR = stateDir;
+    process.env.SARACLAW_PROFILE = "isolated";
 
     try {
       const tool = createOpenClawTools({
@@ -61,14 +61,14 @@ describe("gateway tool", () => {
       kill.mockRestore();
       vi.useRealTimers();
       if (previousStateDir === undefined) {
-        delete process.env.OPENCLAW_STATE_DIR;
+        delete process.env.SARACLAW_STATE_DIR;
       } else {
-        process.env.OPENCLAW_STATE_DIR = previousStateDir;
+        process.env.SARACLAW_STATE_DIR = previousStateDir;
       }
       if (previousProfile === undefined) {
-        delete process.env.OPENCLAW_PROFILE;
+        delete process.env.SARACLAW_PROFILE;
       } else {
-        process.env.OPENCLAW_PROFILE = previousProfile;
+        process.env.SARACLAW_PROFILE = previousProfile;
       }
     }
   });

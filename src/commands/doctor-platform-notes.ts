@@ -75,25 +75,25 @@ export async function noteMacLaunchctlGatewayEnvOverrides(
   const deprecatedLaunchctlEntries = [
     ["MOLTBOT_GATEWAY_TOKEN", await getenv("MOLTBOT_GATEWAY_TOKEN")],
     ["MOLTBOT_GATEWAY_PASSWORD", await getenv("MOLTBOT_GATEWAY_PASSWORD")],
-    ["CLAWDBOT_GATEWAY_TOKEN", await getenv("CLAWDBOT_GATEWAY_TOKEN")],
-    ["CLAWDBOT_GATEWAY_PASSWORD", await getenv("CLAWDBOT_GATEWAY_PASSWORD")],
+    ["SARACLAW_GATEWAY_TOKEN", await getenv("SARACLAW_GATEWAY_TOKEN")],
+    ["SARACLAW_GATEWAY_PASSWORD", await getenv("SARACLAW_GATEWAY_PASSWORD")],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()));
   if (deprecatedLaunchctlEntries.length > 0) {
     const lines = [
       "- Deprecated launchctl environment variables detected (ignored).",
       ...deprecatedLaunchctlEntries.map(
         ([key]) =>
-          `- \`${key}\` is set; use \`OPENCLAW_${key.slice(key.indexOf("_") + 1)}\` instead.`,
+          `- \`${key}\` is set; use \`SARACLAW_${key.slice(key.indexOf("_") + 1)}\` instead.`,
       ),
     ];
     (deps?.noteFn ?? note)(lines.join("\n"), "Gateway (macOS)");
   }
 
   const tokenEntries = [
-    ["OPENCLAW_GATEWAY_TOKEN", await getenv("OPENCLAW_GATEWAY_TOKEN")],
+    ["SARACLAW_GATEWAY_TOKEN", await getenv("SARACLAW_GATEWAY_TOKEN")],
   ] as const;
   const passwordEntries = [
-    ["OPENCLAW_GATEWAY_PASSWORD", await getenv("OPENCLAW_GATEWAY_PASSWORD")],
+    ["SARACLAW_GATEWAY_PASSWORD", await getenv("SARACLAW_GATEWAY_PASSWORD")],
   ] as const;
   const tokenEntry = tokenEntries.find(([, value]) => value?.trim());
   const passwordEntry = passwordEntries.find(([, value]) => value?.trim());
@@ -111,7 +111,7 @@ export async function noteMacLaunchctlGatewayEnvOverrides(
       ? `- \`${envTokenKey}\` is set; it overrides config tokens.`
       : undefined,
     envPassword
-      ? `- \`${envPasswordKey ?? "OPENCLAW_GATEWAY_PASSWORD"}\` is set; it overrides config passwords.`
+      ? `- \`${envPasswordKey ?? "SARACLAW_GATEWAY_PASSWORD"}\` is set; it overrides config passwords.`
       : undefined,
     "- Clear overrides and restart the app/gateway:",
     envTokenKey ? `  launchctl unsetenv ${envTokenKey}` : undefined,
@@ -128,7 +128,7 @@ export function noteDeprecatedLegacyEnvVars(
   const entries = Object.entries(env)
     .filter(
       ([key, value]) =>
-        (key.startsWith("MOLTBOT_") || key.startsWith("CLAWDBOT_")) && value?.trim(),
+        (key.startsWith("MOLTBOT_") || key.startsWith("SARACLAW_")) && value?.trim(),
     )
     .map(([key]) => key);
   if (entries.length === 0) {
@@ -137,10 +137,10 @@ export function noteDeprecatedLegacyEnvVars(
 
   const lines = [
     "- Deprecated legacy environment variables detected (ignored).",
-    "- Use OPENCLAW_* equivalents instead:",
+    "- Use SARACLAW_* equivalents instead:",
     ...entries.map((key) => {
       const suffix = key.slice(key.indexOf("_") + 1);
-      return `  ${key} -> OPENCLAW_${suffix}`;
+      return `  ${key} -> SARACLAW_${suffix}`;
     }),
   ];
   (deps?.noteFn ?? note)(lines.join("\n"), "Environment");

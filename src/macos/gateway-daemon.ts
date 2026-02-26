@@ -2,11 +2,11 @@
 import process from "node:process";
 import type { GatewayLockHandle } from "../infra/gateway-lock.js";
 
-declare const __OPENCLAW_VERSION__: string | undefined;
+declare const __SARACLAW_VERSION__: string | undefined;
 
 const BUNDLED_VERSION =
-  (typeof __OPENCLAW_VERSION__ === "string" && __OPENCLAW_VERSION__) ||
-  process.env.OPENCLAW_BUNDLED_VERSION ||
+  (typeof __SARACLAW_VERSION__ === "string" && __SARACLAW_VERSION__) ||
+  process.env.SARACLAW_BUNDLED_VERSION ||
   "0.0.0";
 
 function argValue(args: string[], flag: string): string | undefined {
@@ -75,8 +75,8 @@ async function main() {
   const cfg = loadConfig();
   const portRaw =
     argValue(args, "--port") ??
-    process.env.OPENCLAW_GATEWAY_PORT ??
-    process.env.CLAWDBOT_GATEWAY_PORT ??
+    process.env.SARACLAW_GATEWAY_PORT ??
+    process.env.SARACLAW_GATEWAY_PORT ??
     (typeof cfg.gateway?.port === "number" ? String(cfg.gateway.port) : "") ??
     "18789";
   const port = Number.parseInt(portRaw, 10);
@@ -87,8 +87,8 @@ async function main() {
 
   const bindRaw =
     argValue(args, "--bind") ??
-    process.env.OPENCLAW_GATEWAY_BIND ??
-    process.env.CLAWDBOT_GATEWAY_BIND ??
+    process.env.SARACLAW_GATEWAY_BIND ??
+    process.env.SARACLAW_GATEWAY_BIND ??
     cfg.gateway?.bind ??
     "loopback";
   const bind =
@@ -106,7 +106,7 @@ async function main() {
 
   const token = argValue(args, "--token");
   if (token) {
-    process.env.OPENCLAW_GATEWAY_TOKEN = token;
+    process.env.SARACLAW_GATEWAY_TOKEN = token;
   }
 
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;

@@ -755,7 +755,7 @@ export async function runGatewayUpdate(opts: UpdateRunnerOptions = {}): Promise<
         "openclaw doctor",
         managerScriptArgs(manager, "openclaw", ["doctor", "--non-interactive"]),
         gitRoot,
-        { OPENCLAW_UPDATE_IN_PROGRESS: "1" },
+        { SARACLAW_UPDATE_IN_PROGRESS: "1" },
       ),
     );
     steps.push(doctorStep);
